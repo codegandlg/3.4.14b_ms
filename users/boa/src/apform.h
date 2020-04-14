@@ -976,6 +976,8 @@ extern void formDnsv6(request *wp, char * path, char * query);
 extern void formDhcpv6s(request *wp, char * path, char * query);
 extern void formIPv6Addr(request *wp, char * path, char * query);
 extern void formIpv6Setup(request *wp, char * path, char * query);
+extern void formNewIpv6Setup(request *wp, char * path, char * query);
+
 extern uint32 getIPv6Info(request *wp, int argc, char **argv);
 extern uint32 getIPv6WanInfo(request *wp, int argc, char **argv);
 extern int getIPv6Status(request *wp, int argc, char **argv);

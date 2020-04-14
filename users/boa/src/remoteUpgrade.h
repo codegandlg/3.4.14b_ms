@@ -22,7 +22,8 @@
 #ifndef _REMOTE_UPGRADE_H
 #define _REMOTE_UPGRADE_H
 #define MY_HTTP_DEFAULT_PORT 80
-#define UPGRADE_FILE_SERVER_PATH "http://%s/firmware/latest"  //http://120.79.61.154/firmware/latest
+//#define UPGRADE_FILE_SERVER_PATH "http://%s/firmware/latest"  //http://120.79.61.154/firmware/latest
+#define UPGRADE_FILE_SERVER_PATH "http://%s/firmware/latest?company=UNICOM&&product=MT1"  //http://120.79.61.154/firmware/latest
 #define UPGRADE_GILE_SERVER_HOST_NAME "mesh01.kingsignal.cn"  //mesh01.kingsignal.cn  mesh01.jxngroup.com
 #define LOCATION_FILE_PATH "/tmp/fw.bin"
 #define BUFFER_SIZE 1024

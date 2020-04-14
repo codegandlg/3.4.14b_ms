@@ -1369,7 +1369,7 @@ void formParentContrl(request *wp, char *path, char *query)
 	   (atoi(strEndTime)-atoi(strStartTime)>0))
 	   	{
 		apmib_get(MIB_PARENT_CONTRL_TBL_NUM, (void *)&entryNum);
-		for(j=1;j<=entryNum;j++)
+		for(j=0;j<entryNum;j++)
 		 {
 			memset(&parentContrltmp, 0x00, sizeof(parentContrltmp));
 			*((char *)&parentContrltmp) = (char)j;
@@ -1473,7 +1473,7 @@ void formParentContrl(request *wp, char *path, char *query)
 	    }
 
         memset(staInfo,0,sizeof(staInfo));
-		for (i=1; i<=staNum; i++) 
+		for (i=0; i<staNum; i++) 
 	     {	 
 		 sprintf(terminalIndex,"parentContrlSta%d",i);
 		 sprintf(terminalSelectIndex,"terminalSelect%d",i);
@@ -1484,14 +1484,14 @@ void formParentContrl(request *wp, char *path, char *query)
 		    if(!strcmp(strTerminalSelect, "ON")) 
 		    {
 			 memset(tmp,0,sizeof(tmp));
-			 if(staNum == 1)
-			 {  
-			  strcpy(tmp,strTerminal);
-			 }
-			 else
-			 {
+			 //if(staNum == 1)
+			// {  
+			 // strcpy(tmp,strTerminal);
+			// }
+			// else
+			// {
 			  sprintf(tmp,"%s;",strTerminal);
-			 }
+			// }
              strcat(staInfo,tmp); 
 		    }
 		  }
@@ -1807,12 +1807,12 @@ cJSON *getParentControlListJSON()
 	   	*((char *)&entry) = (char)i;
 		if ( !apmib_get(MIB_PARENT_CONTRL_TBL, (void *)&entry))
 			return -1;
-		/*
+		
 		printf("\ntmpMon=%d tmpTues=%d  tmpWed=%d  tmpThur=%d  tmpFri=%d tmpSat=%d  tmpSun=%d  tmpstart=%d  tmpend=%d terminal=%s\n", \
 		entry.parentContrlWeekMon,entry.parentContrlWeekTues,entry.parentContrlWeekWed,\
 		entry.parentContrlWeekThur,entry.parentContrlWeekFri,entry.parentContrlWeekSat, \
 		entry.parentContrlWeekSun, entry.parentContrlStartTime,entry.parentContrlEndTime,entry.parentContrlTerminal);
-		*/	
+	
 		sprintf(tmpBuf,"select%d",i);
 	    cJSON_AddItemToObject(topRoot, tmpBuf,root=cJSON_CreateArray());
 	    cJSON_AddItemToArray(root,parameters=cJSON_CreateObject());		

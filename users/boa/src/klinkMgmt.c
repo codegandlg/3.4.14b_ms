@@ -184,7 +184,7 @@ int getSlaveMacNum(cJSON *root)
   }
   else
   {
-     TRACE_DEBUG("%s:%d： can't find child_devices.", __FUNCTION__, __LINE__);
+     TRACE_DEBUG_KLINKM("%s:%d： can't find child_devices.", __FUNCTION__, __LINE__);
   }
   return slaveNum;
 }
@@ -219,7 +219,7 @@ int getMeshNodeNumber()
  fp = fopen("/tmp/topology_json", "r");
  if(fp == NULL)
  {
-  TRACE_DEBUG("==>%s_%d:open /tmp/topology_json fail...",__FUNCTION__,__LINE__);
+  TRACE_DEBUG_KLINKM("==>%s_%d:open /tmp/topology_json fail...",__FUNCTION__,__LINE__);
   return 0;
  }
  else
@@ -232,7 +232,7 @@ int getMeshNodeNumber()
    free(line);    
    if(root==0)
    {
-    TRACE_DEBUG("%s_%d: error...\n ",__FUNCTION__,__LINE__);
+    TRACE_DEBUG_KLINKM("%s_%d: error...\n ",__FUNCTION__,__LINE__);
    }
    else
    {
@@ -247,7 +247,7 @@ int getMeshNodeNumber()
 }
  }
   out = cJSON_Print(root);
- // TRACE_DEBUG("==>%s_%d:out=\n%s\n\n",__FUNCTION__,__LINE__,out);	
+ // TRACE_DEBUG_KLINKM("==>%s_%d:out=\n%s\n\n",__FUNCTION__,__LINE__,out);	
   cJSON_Delete(root);
   free(out);
   return slaveNum;
@@ -295,7 +295,7 @@ KlinkNode_t* addKlinkNodeData(KlinkNode_t*head,KlinkNode_t *pdata)
 	    /*if found same slave node already in the link list,just update node data*/
 	    if(!strcmp(phead->next->slaveDevideInfo.slaveMacAddr,pdata->slaveDevideInfo.slaveMacAddr))
 	    {
-	     TRACE_DEBUG("[boa]==>%s_%d:found same mesh device in the link node list\n",__FUNCTION__,__LINE__);
+	     TRACE_DEBUG_KLINKM("[boa]==>%s_%d:found same mesh device in the link node list\n",__FUNCTION__,__LINE__);
 		 if(strcmp(phead->next->slaveDevideInfo.slaveFwVersion,pdata->slaveDevideInfo.slaveFwVersion))
 		 {
 		  memset(phead->next->slaveDevideInfo.slaveFwVersion,0,sizeof(phead->next->slaveDevideInfo.slaveFwVersion));
@@ -318,9 +318,9 @@ KlinkNode_t* addKlinkNodeData(KlinkNode_t*head,KlinkNode_t *pdata)
 		  strcpy(new_node->slaveDevideInfo.sn,pdata->slaveDevideInfo.sn);	
 		  phead->next=new_node;
 		  new_node->next=NULL;
-		  TRACE_DEBUG("[boa]add list succed :mac= %s\n",new_node->slaveDevideInfo.slaveMacAddr);
-		  TRACE_DEBUG("[boa]add list succed :version= %s\n",new_node->slaveDevideInfo.slaveFwVersion);	
-		  TRACE_DEBUG("[boa]add list succed :SN= %s\n",new_node->slaveDevideInfo.sn);	
+		  TRACE_DEBUG_KLINKM("[boa]add list succed :mac= %s\n",new_node->slaveDevideInfo.slaveMacAddr);
+		  TRACE_DEBUG_KLINKM("[boa]add list succed :version= %s\n",new_node->slaveDevideInfo.slaveFwVersion);	
+		  TRACE_DEBUG_KLINKM("[boa]add list succed :SN= %s\n",new_node->slaveDevideInfo.sn);	
 		 return phead;
 	  }	   
    }
@@ -415,13 +415,13 @@ int createMeshLinkList()
 	 apmib_get(MIB_KLINK_SLAVE16_SOFT_VERSION, (void *)versionInfo);
 	 break;
 	default:
-	 TRACE_DEBUG("[boa]%s_%d:index error,index numbre is %d \n",__FUNCTION__,__LINE__,i);    
+	 TRACE_DEBUG_KLINKM("[boa]%s_%d:index error,index numbre is %d \n",__FUNCTION__,__LINE__,i);    
 	 break;
 	}
 
     sprintf(tmpBuf,"%s;%s;",versionInfo,sn);
     klinkNodeData=getMibInfo(tmpBuf);
-    TRACE_DEBUG("[boa]%s_%s_%d:slaveMacAddr=%s fw=%s sn=%s\n",__FILE__,__FUNCTION__,__LINE__,klinkNodeData.slaveDevideInfo.slaveMacAddr,klinkNodeData.slaveDevideInfo.slaveFwVersion,klinkNodeData.slaveDevideInfo.sn);
+    TRACE_DEBUG_KLINKM("[boa]%s_%s_%d:slaveMacAddr=%s fw=%s sn=%s\n",__FILE__,__FUNCTION__,__LINE__,klinkNodeData.slaveDevideInfo.slaveMacAddr,klinkNodeData.slaveDevideInfo.slaveFwVersion,klinkNodeData.slaveDevideInfo.sn);
 	addKlinkNodeData(g_pKlinkHeadNode,&klinkNodeData);
    
   }
@@ -435,7 +435,7 @@ int createMeshLinkList()
 	KlinkNode_t *phead=head;
 	if(phead==NULL)
 	{
-		TRACE_DEBUG("[boa]head_node is empty\n");
+		TRACE_DEBUG_KLINKM("[boa]head_node is empty\n");
 		return NULL;
 	}
 
@@ -451,14 +451,14 @@ int createMeshLinkList()
 		  {
 		     strcpy(targetObj,phead->next->slaveDevideInfo.sn);	
 		  }
-		 TRACE_DEBUG("[boa]%s_%d:target=%s\n",__FUNCTION__,__LINE__,targetObj);
+		 TRACE_DEBUG_KLINKM("[boa]%s_%d:target=%s\n",__FUNCTION__,__LINE__,targetObj);
 		  return targetObj;
 	    }		
 		phead=phead->next;
 	}
-	TRACE_DEBUG("[boa]serch failed\n");
+	TRACE_DEBUG_KLINKM("[boa]serch failed\n");
 	strcpy(targetObj,"...");	
-	 TRACE_DEBUG("[boa]%s_%d:target=%s\n",__FUNCTION__,__LINE__,targetObj);
+	 TRACE_DEBUG_KLINKM("[boa]%s_%d:target=%s\n",__FUNCTION__,__LINE__,targetObj);
 	return NULL;
 
 }
@@ -468,22 +468,22 @@ KlinkNode_t* serchKlinkListNode_1(KlinkNode_t*head,char *pMac)
 	KlinkNode_t *phead=head;
 	if(phead==NULL)
 	{
-		TRACE_DEBUG("head_node is empty\n");
+		TRACE_DEBUG_KLINKM("head_node is empty\n");
 		return NULL;
 	}
 	while(strcmp(phead->slaveDevideInfo.slaveMacAddr,pMac)&&phead->next!=NULL)
 	{   
-	    TRACE_DEBUG("%s_%d: mac=%s\n ",__FUNCTION__,__LINE__,pMac);
+	    TRACE_DEBUG_KLINKM("%s_%d: mac=%s\n ",__FUNCTION__,__LINE__,pMac);
 		phead=phead->next;
 	}
 	if(!(strcmp(phead->slaveDevideInfo.slaveMacAddr,pMac)))
 	{
-		TRACE_DEBUG("serch succed klink node data=%s\n",pMac);
+		TRACE_DEBUG_KLINKM("serch succed klink node data=%s\n",pMac);
 		return phead;
 	}
 	else
 	{
-		TRACE_DEBUG("serch failed\n");
+		TRACE_DEBUG_KLINKM("serch failed\n");
 	}
 }
 
@@ -574,7 +574,7 @@ int findOldDeviceInfo(char targetInfo[], char* mac, int dataType)
 	 apmib_get(MIB_KLINK_SLAVE16_SOFT_VERSION, (void *)versionInfo);
 	 break;
 	default:
-	 TRACE_DEBUG("%s_%d:index error,index numbre is %d \n",__FUNCTION__,__LINE__,i);    
+	 TRACE_DEBUG_KLINKM("%s_%d:index error,index numbre is %d \n",__FUNCTION__,__LINE__,i);    
 	 break;
 	}
     if(strlen(versionInfo)==0)
@@ -613,7 +613,7 @@ int findOldDeviceInfo(char targetInfo[], char* mac, int dataType)
 int getSlaveVersion(char targetInfo[], char* mac, int dataType)
 {
 
-     TRACE_DEBUG("[boa]===>%s:%d:mac=%s\n", __FUNCTION__, __LINE__,mac);
+     TRACE_DEBUG_KLINKM("[boa]===>%s:%d:mac=%s\n", __FUNCTION__, __LINE__,mac);
  char *pMac=mac;
  char* pTargetString=NULL;
  KlinkNode_t *pTargetVersion=NULL;
@@ -638,7 +638,7 @@ int getSlaveVersion(char targetInfo[], char* mac, int dataType)
 } 
  strcpy(data.slaveDevideInfo.slaveMacAddr,pMac);
  createMeshLinkList();
-    TRACE_DEBUG("[boa]:::\n");
+    TRACE_DEBUG_KLINKM("[boa]:::\n");
   showKlinkNode(g_pKlinkHeadNode);
 // pTargetVersion=serchTargetNode(g_pKlinkHeadNode,&data);
   memset(targetInfo,0,sizeof(targetInfo));

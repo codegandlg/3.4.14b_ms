@@ -17,6 +17,7 @@
  }
  var dmz_checkip1,dmz_checkip2,dmz_checkip3,dmz_checkip4,dmz_checkip5,dmz_checkip6,dmz_checkip7,util_gw_mask_empty,util_gw_ip_format;
  var tcpip_lan_invalid_ip_value,tcpip_lan_invalid_subnet_value,tcpip_lan_invalid_defgw_value,tcpip_lan_invalid_dhcpstart,tcpip_lan_invalid_dhcpend,tcpip_lan_invalid_dhcprange,tcpip_lan_invalid_dns_value,tcpip_lan_invalid_domain,tcpip_check_dhcp,tcpip_dhcp_error;
+ var util_gw_ipv6_invalid,util_gw_ipv6_prefix;
  if(i18nLanguage=='en'){
 	dmz_checkip1 = 'IP address cannot be empty! It should be filled with 4 digit numbers as xxx.xxx.xxx.xxx.';
 	dmz_checkip2 = ' value. It should be the decimal number (0-9).';
@@ -38,6 +39,8 @@
 	tcpip_lan_invalid_domain = 'Invalid Domain Name! Please enter characters in A(a)~Z(z) or 0-9 without spacing.';
 	tcpip_check_dhcp = 'Please check your \"Static DHCP\" setting. The static IP address must be in the range of dhcpd ip pool, and is not same with router\'s ip!';
 	tcpip_dhcp_error = 'DHCP Client Range can\'t cover Static DHCP List!!!';
+	util_gw_ipv6_invalid='ipv6 address invalid!';
+	util_gw_ipv6_prefix = 'ipv6 prefix must between 0-128!';
  }else{
 	dmz_checkip1 = 'IP地址不能为空! IP地址为如 xxx.xxx.xxx.xxx所示的4个十进制数.';
 	dmz_checkip2 = '值. 它必须为十进制数(0-9).';
@@ -59,6 +62,8 @@
 	tcpip_lan_invalid_domain = '非法的服务器域名！正确的域名由字母或数字组成且不含有空格。';
 	tcpip_check_dhcp = '请检查你的"静态DHCP"的设置. 静态IP地址必须在dhcpd的IP地址池内，并且不能和路由器地址相同!';
 	tcpip_dhcp_error = 'DHCP客户端的地址不能覆盖静态DHCP表!!!';
+	util_gw_ipv6_invalid='ipv6地址无效!';
+	util_gw_ipv6_prefix = 'ipv6前缀必须是0-128!';
  }
  
 	function getCookie(name) {

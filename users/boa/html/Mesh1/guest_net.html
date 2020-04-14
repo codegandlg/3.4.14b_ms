@@ -194,7 +194,7 @@
 				
 				 var status_value_submit= $('[name="guest_wlan_enabled"]').bootstrapSwitch('state');
 				 var guest_password_value=$("#guest_password").val();
-				 if(guest_password_value.length<8){
+				 if(guest_password_value.length<8&&status_value_submit=="true"){
 				 	if(i18nLanguage=='en'){
 	        			alert("The password is less than 8 bits!");   
 						return false;

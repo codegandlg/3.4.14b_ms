@@ -196,6 +196,10 @@ struct request {                /* pending requests */
 // davidhsu ------------------------
 #ifndef NEW_POST
     int post_data_fd;           /* fd for post data tmpfile */
+	char *post_data;
+	int post_data_len;
+	int post_data_idx;
+
 #else
 #if defined(BOA_CGI_SUPPORT)
     int post_data_fd;

@@ -658,6 +658,7 @@ int  set_DhcpSParam(request *wp, char *path, char *query, dhcp6sCfgParam_t *dhcp
 	int enable;
 	int val=0;
 	/*check if enabled*/
+
 	enable=atoi(req_get_cstream_var(wp,"enable_dhcpv6s",""));
 	if(enable ^ dhcp6sCfgParam->enabled )
 	{
@@ -666,29 +667,29 @@ int  set_DhcpSParam(request *wp, char *path, char *query, dhcp6sCfgParam_t *dhcp
 	apmib_get(MIB_IPV6_LAN_ORIGIN,&val);
 	if(enable && val) // only update dhcp6s mib when lan manual mode & enable dhcp6s.
 	{
-	value = req_get_cstream_var(wp,"dnsaddr","");
-	strcpy(dhcp6sCfgParam->DNSaddr6,value);
-	
-	value = req_get_cstream_var(wp,"interfacenameds","");
-	if(!strcmp(value,""))
-	{
-		sprintf(dhcp6sCfgParam->interfaceNameds,"%s","br0");
-	}
-	else
-	{
-		strcpy(dhcp6sCfgParam->interfaceNameds,value);
-	}
+		value = req_get_cstream_var(wp,"dnsaddr","");
+		strcpy(dhcp6sCfgParam->DNSaddr6,value);
+		
+		value = req_get_cstream_var(wp,"interfacenameds","");
+		if(!strcmp(value,""))
+		{
+			sprintf(dhcp6sCfgParam->interfaceNameds,"%s","br0");
+		}
+		else
+		{
+			strcpy(dhcp6sCfgParam->interfaceNameds,value);
+		}
 
 #ifdef CONFIG_IPV6_CE_ROUTER_SUPPORT
-	value = req_get_cstream_var(wp,"dhcpv6_prefix_mode","");
-	dhcp6sCfgParam->addr6PrefixMode = atoi(value);
+		value = req_get_cstream_var(wp,"dhcpv6_prefix_mode","");
+		dhcp6sCfgParam->addr6PrefixMode = atoi(value);
 #endif
 
-	value = req_get_cstream_var(wp,"addrPoolStart","");
-	strcpy(dhcp6sCfgParam->addr6PoolS,value);
+		value = req_get_cstream_var(wp,"addrPoolStart","");
+		strcpy(dhcp6sCfgParam->addr6PoolS,value);
 
-	value = req_get_cstream_var(wp,"addrPoolEnd","");
-	strcpy(dhcp6sCfgParam->addr6PoolE,value);
+		value = req_get_cstream_var(wp,"addrPoolEnd","");
+		strcpy(dhcp6sCfgParam->addr6PoolE,value);
 	}
 	return 0;
 }
@@ -1189,8 +1190,105 @@ void formDhcpv6s(request *wp, char *path, char *query)
 	OK_MSG(submitUrl);
 	return;
 }
+void formDhcpv6sSetting(request *wp, char *path, char *query)
+{
+	dhcp6sCfgParam_t dhcp6sCfgParam;
+	addr6CfgParam_t	addr6;
+	char tmpBuf[256];
+	char *submitUrl;
+	char* value;
+	char* strval0;
+	char* strval1;
+#ifdef CONFIG_IPV6_CE_ROUTER_SUPPORT
+	addr6CfgParam_t	ula_addr6;
+	int val;
+#endif
 
-void formIpv6Setup(request *wp, char *path, char *query)
+	
+	/*Get parameters**/
+	getDhcpv6sInfo(&dhcp6sCfgParam);
+	
+	getLanAddv6Info(&addr6);
+	sprintf(tmpBuf,"ifconfig br0 del %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x/%d 2> /dev/null",
+						addr6.addrIPv6[0],addr6.addrIPv6[1],addr6.addrIPv6[2],
+						addr6.addrIPv6[3],addr6.addrIPv6[4],addr6.addrIPv6[5],
+						addr6.addrIPv6[6],addr6.addrIPv6[7],addr6.prefix_len);
+	system(tmpBuf);
+
+	/*Set to Parameters*/
+	//if((0 == strcmp(req_get_cstream_var(wp,"submit",""), "Save"))||(0 == strcmp(req_get_cstream_var(wp, ("save_apply"), ""), "Save & Apply")))
+	strval0=req_get_cstream_var(wp,"save","");
+
+	if(strval0[0])
+	{
+		int val;
+		if(!apmib_get(MIB_IPV6_WAN_ENABLE,&val)){		
+			fprintf(stderr, "get mib %d error!\n", MIB_IPV6_WAN_ENABLE);
+			return ;			
+		}
+		else if(val!=0)
+		{
+
+			value=req_get_cstream_var(wp,"ipv6lanOrigin","");
+			val = atoi(value);//0:auto 1:mode
+			apmib_set(MIB_IPV6_LAN_ORIGIN,&val);
+
+			if(val){ // only update IPV6_ADDR_LAN_PARAM mib when lan manual mode.
+				set_lan_addr6(wp, path, query,&addr6);
+				apmib_set(MIB_IPV6_ADDR_LAN_PARAM,&addr6);
+			}
+			set_DhcpSParam(wp, path, query,&dhcp6sCfgParam);
+			apmib_set(MIB_IPV6_DHCPV6S_PARAM,&dhcp6sCfgParam);
+
+#ifdef CONFIG_IPV6_CE_ROUTER_SUPPORT
+			/* ula address */
+			value=req_get_cstream_var(wp,"enable_ula","");
+			val = atoi(value);
+			apmib_set(MIB_IPV6_ULA_ENABLE,&val);
+
+			value=req_get_cstream_var(wp,"ula_mode","");
+			if(!strcmp(value,"ulaManual"))
+				val = 0;
+			else
+				val = 1;
+			apmib_set(MIB_IPV6_ULA_MODE,&val);
+
+			if(val == 0)
+			{
+				set_ula_addr6(wp, path, query,&ula_addr6);
+				apmib_set(MIB_IPV6_ADDR_ULA_PARAM,&ula_addr6);
+			}
+			else
+			{
+				memset(&ula_addr6, 0, sizeof(addr6CfgParam_t));
+				create_ula_prefix(&ula_addr6);
+				apmib_set(MIB_IPV6_ADDR_ULA_PARAM,&ula_addr6);
+			}
+#endif
+
+		}
+	}	
+	
+	/*create the config file*/
+	create_Dhcp6CfgFile(&dhcp6sCfgParam);	
+	
+	/*start the Daemon*/
+#if 0
+#ifndef NO_ACTION
+	sprintf(tmpBuf,"ifconfig br0 add %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x/%d",
+					addr6.addrIPv6[0],addr6.addrIPv6[1],addr6.addrIPv6[2],
+					addr6.addrIPv6[3],addr6.addrIPv6[4],addr6.addrIPv6[5],
+					addr6.addrIPv6[6],addr6.addrIPv6[7],addr6.prefix_len);
+	system(tmpBuf);
+	sprintf(tmpBuf,"%s %s",_IPV6_DHCPV6S_SCRIPT_PROG, dhcp6sCfgParam.interfaceNameds);
+	system(tmpBuf);
+#endif
+
+#endif
+	return;
+}
+
+void formNewIpv6Setup(request *wp, char *path, char *query)
 {
 		addr6CfgParam_t	addr6_wan;
 		addr6CfgParam_t addr6_gw;
@@ -1208,6 +1306,8 @@ void formIpv6Setup(request *wp, char *path, char *query)
 		addr6CfgParam_t remoteaddr6_ip6ip;
 		addr6CfgParam_t localaddr6_ip6ip;
 #endif
+
+#if 0
 		/*Set to Parameters*/
 		strval=req_get_cstream_var(wp,"save","");
 	
@@ -1221,6 +1321,9 @@ void formIpv6Setup(request *wp, char *path, char *query)
 		   || 0 == strcmp(strval, "Save & Apply")
 #endif
 		   )*/
+
+#endif
+		strval=req_get_cstream_var(wp,"save","");
         if(strval[0])
 		{			
 			strval=req_get_cstream_var(wp,"wan_enable","");
@@ -1347,6 +1450,7 @@ void formIpv6Setup(request *wp, char *path, char *query)
 				
 				strval=req_get_cstream_var(wp,"dhcpMode","");
 				if(strval[0]){
+					#if 0
 					if(strcmp(strval,"stateless")==0)
 						val=IPV6_DHCP_STATELESS;
 					else
@@ -1354,6 +1458,20 @@ void formIpv6Setup(request *wp, char *path, char *query)
 						val=IPV6_DHCP_STATEFUL;
 						
 					}
+					#else 
+						val=IPV6_DHCP_STATEFUL;
+
+					#endif
+#ifdef TR181_V6_SUPPORT
+					apmib_set(MIB_IPV6_DHCPC_REQUEST_ADDR,(void*)&val);
+#endif
+
+					apmib_set(MIB_IPV6_DHCP_MODE,&val);
+				}
+				else
+				{
+					//MT1 new IPv6 default setting
+					val=IPV6_DHCP_STATELESS;
 #ifdef TR181_V6_SUPPORT
 					apmib_set(MIB_IPV6_DHCPC_REQUEST_ADDR,(void*)&val);
 #endif
@@ -1444,34 +1562,34 @@ void formIpv6Setup(request *wp, char *path, char *query)
 				}
 				if(val==0)	//Set DNS Manually 
 				{
-				strval=req_get_cstream_var(wp,"wan_dns1_0","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[0]=strtol(strval,NULL,16);
-				strval=req_get_cstream_var(wp,"wan_dns1_1","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[1]=strtol(strval,NULL,16);	
-				strval=req_get_cstream_var(wp,"wan_dns1_2","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[2]=strtol(strval,NULL,16);	
-				strval=req_get_cstream_var(wp,"wan_dns1_3","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[3]=strtol(strval,NULL,16);
-				strval=req_get_cstream_var(wp,"wan_dns1_4","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[4]=strtol(strval,NULL,16);
-				strval=req_get_cstream_var(wp,"wan_dns1_5","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[5]=strtol(strval,NULL,16);
-				strval=req_get_cstream_var(wp,"wan_dns1_6","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[6]=strtol(strval,NULL,16);
-				strval=req_get_cstream_var(wp,"wan_dns1_7","");
-				if(strval!=NULL)
-					addr6_dns.addrIPv6[7]=strtol(strval,NULL,16);
-				strval=req_get_cstream_var(wp,"prefix_len_dns1","");
-				if(strval!=NULL)
-					addr6_dns.prefix_len=atoi(strval);
-				apmib_set(MIB_IPV6_ADDR_DNS_PARAM,&addr6_dns);
+					strval=req_get_cstream_var(wp,"wan_dns1_0","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[0]=strtol(strval,NULL,16);
+					strval=req_get_cstream_var(wp,"wan_dns1_1","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[1]=strtol(strval,NULL,16);	
+					strval=req_get_cstream_var(wp,"wan_dns1_2","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[2]=strtol(strval,NULL,16);	
+					strval=req_get_cstream_var(wp,"wan_dns1_3","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[3]=strtol(strval,NULL,16);
+					strval=req_get_cstream_var(wp,"wan_dns1_4","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[4]=strtol(strval,NULL,16);
+					strval=req_get_cstream_var(wp,"wan_dns1_5","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[5]=strtol(strval,NULL,16);
+					strval=req_get_cstream_var(wp,"wan_dns1_6","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[6]=strtol(strval,NULL,16);
+					strval=req_get_cstream_var(wp,"wan_dns1_7","");
+					if(strval!=NULL)
+						addr6_dns.addrIPv6[7]=strtol(strval,NULL,16);
+					strval=req_get_cstream_var(wp,"prefix_len_dns1","");
+					if(strval!=NULL)
+						addr6_dns.prefix_len=atoi(strval);
+					apmib_set(MIB_IPV6_ADDR_DNS_PARAM,&addr6_dns);
 				}
 
 				/*Get parameters*/
@@ -1480,7 +1598,6 @@ void formIpv6Setup(request *wp, char *path, char *query)
 				set_DnsParam(wp, path, query,&dnsCfgParam);				
 				/*Set to pMIb*/
 				apmib_set(MIB_IPV6_DNSV6_PARAM,&dnsCfgParam);
-
 
 
 #ifdef CONFIG_DSLITE_SUPPORT
@@ -1547,7 +1664,9 @@ void formIpv6Setup(request *wp, char *path, char *query)
 				}
 #endif				
 				strval = req_get_cstream_var(wp, ("mldproxyEnabled"), "");
-				if ( !strcmp(strval, "ON"))
+				if (strval==NULL)
+					val = 0; //the feature is turned on by default
+				else if ( !strcmp(strval, "ON"))
 					val = 0;
 				else
 					val = 1;
@@ -1699,16 +1818,638 @@ void formIpv6Setup(request *wp, char *path, char *query)
 					}
 				}
 #endif
+
+				formDhcpv6sSetting(wp, path, query);
+			}
+			submitUrl = req_get_cstream_var(wp, ("wlan-url"), ""); 
+			REBOOT_WAIT(submitUrl);
+			/*Update it to flash*/
+			apmib_update(CURRENT_SETTING);	
+#ifdef REBOOT_CHECK
+	run_init_script_flag = 1;
+#endif
+#ifndef NO_ACTION
+			run_init_script("all");
+#endif
+		}
+		return;
+		
+}
+
+void formIpv6Setup(request *wp, char *path, char *query)
+{
+		addr6CfgParam_t	addr6_wan;
+		addr6CfgParam_t addr6_gw;
+		addr6CfgParam_t addr6_dns;
+		addr6CfgParam_t addr6_prefix;
+		addr6CfgParam_t addr6_6rd_prefix;
+		dhcp6cCfgParam_t dhcp6cCfgParam;
+		dnsv6CfgParam_t dnsCfgParam;
+		char *submitUrl;
+		char* strval;
+		uint32 val;
+		int repid_commit=0, i=0;
+		struct in_addr Ip4addr;
+#ifdef CONFIG_IP6IP_TUNNEL_SUPPORT
+		addr6CfgParam_t remoteaddr6_ip6ip;
+		addr6CfgParam_t localaddr6_ip6ip;
+#endif
+		/*Set to Parameters*/
+		strval=req_get_cstream_var(wp,"save","");
+#if defined(APPLY_CHANGE_DIRECT_SUPPORT)
+		if(strval[0]==0){
+			strval = req_get_cstream_var(wp, ("save_apply"), "");
+		}
+#endif			
+		/*if(0 == strcmp(strval, "Apply Changes")||0 == strcmp(strval, "Save")
+#if defined(APPLY_CHANGE_DIRECT_SUPPORT)
+		   || 0 == strcmp(strval, "Save & Apply")
+#endif
+		   )*/
+        if(strval[0])
+		{			
+			strval=req_get_cstream_var(wp,"wan_enable","");
+			//printf("[%s:%d] strVal=%d\n",__FUNCTION__,__LINE__, strval);
+			val= atoi(strval);
+			apmib_set(MIB_IPV6_WAN_ENABLE,&val);
+			if(val){
+				strval=req_get_cstream_var(wp,"OriginType","");
+				if(strval!=NULL){
+					val= atoi(strval);
+					apmib_set(MIB_IPV6_ORIGIN_TYPE,&val);
+				}
+				
+				strval=req_get_cstream_var(wp,"linkType","");
+				if(strval!=NULL){
+					val=atoi(strval);			
+					apmib_set(MIB_IPV6_LINK_TYPE,&val);
+				}
+				
+
+				strval=req_get_cstream_var(wp,"dnsType","");
+				if(strval[0]){
+					val=atoi(strval);			
+					apmib_set(MIB_IPV6_DNS_AUTO,&val);
+#ifdef TR181_V6_SUPPORT
+					if(val)
+					{
+						int i=0,find=0,maxNum=IPV6_DHCPC_SENDOPT_NUM;
+						DHCPV6C_SENDOPT_T entryTmp={0};
+						DHCPV6C_SENDOPT_T entry[2]={0};
+
+						apmib_set(MIB_IPV6_DHCPC_SENDOPT_TBL_NUM,(void*)&maxNum);
+						for(i=1;i<=IPV6_DHCPC_SENDOPT_NUM;i++)
+						{
+							*((char *)&entryTmp) = (char)i;
+							if ( !apmib_get(MIB_IPV6_DHCPC_SENDOPT_TBL, (void *)&entryTmp)){
+								printf("get MIB_IPV6_DHCPC_SENDOPT_TBL fail!\n");
+								return;
+							}
+							if(entryTmp.tag==23)
+							{
+								if(!entryTmp.enable)
+								{//enable it
+									
+									*((char*)entry)=(char)i;
+									if(apmib_get(MIB_IPV6_DHCPC_SENDOPT_TBL,(void*)entry)==0)
+									{
+										printf("get MIB_IPV6_DHCPC_SENDOPT_TBL fail!\n");
+										return -1;
+									}
+									entry[1]=entry[0];
+									entry[1].enable=1;
+									if(apmib_set(MIB_IPV6_DHCPC_SENDOPT_MOD,(void*)entry)==0)
+									{
+										printf("set MIB_IPV6_DHCPC_SENDOPT_MOD fail!\n");
+										return ;
+									}
+								}
+								find=1;
+								break;
+							}							
+						}
+						if(!find)
+						{
+							for(i=1;i<=IPV6_DHCPC_SENDOPT_NUM;i++)
+							{
+								*((char*)entry)=(char)i;
+								if(apmib_get(MIB_IPV6_DHCPC_SENDOPT_TBL,(void*)entry)==0)
+								{
+									printf("get MIB_IPV6_DHCPC_SENDOPT_TBL fail!\n");
+									return;
+								}
+								if(entry[0].tag==0)//not used
+								{
+									entry[1]=entry[0];
+									entry[1].tag=23;
+									entry[1].enable=1;
+								}
+								if(apmib_set(MIB_IPV6_DHCPC_SENDOPT_MOD,(void*)entry)==0)
+								{
+									printf("set MIB_IPV6_DHCPC_SENDOPT_MOD fail!%d\n",__LINE__);
+									return;
+								}
+								break;
+							}
+						}
+					}else
+					{
+						int i=0,find=0,maxNum=IPV6_DHCPC_SENDOPT_NUM;
+						DHCPV6C_SENDOPT_T entry[2]={0};
+
+						apmib_set(MIB_IPV6_DHCPC_SENDOPT_TBL_NUM,(void*)&maxNum);
+						for(i=1;i<=IPV6_DHCPC_SENDOPT_NUM;i++)
+						{
+							*((char*)entry)=(char)i;
+							if(apmib_get(MIB_IPV6_DHCPC_SENDOPT_TBL,(void*)entry)==0)
+							{
+								printf("get MIB_IPV6_DHCPC_SENDOPT_TBL fail!\n");
+								return;
+							}
+							if(entry[0].tag==23 && entry[0].enable!=0)
+							{
+								entry[1]=entry[0];
+								entry[1].enable=0;
+							}
+							if(apmib_set(MIB_IPV6_DHCPC_SENDOPT_MOD,(void*)entry)==0)
+							{
+								printf("set MIB_IPV6_DHCPC_SENDOPT_MOD fail!%d\n",__LINE__);
+								return;
+							}
+						}
+					}
+#endif
+				}
+				strval=req_get_cstream_var(wp,"enable_dhcpv6RapidCommit","");
+				if(strval[0]){
+					repid_commit=1;					
+				}
+				if(apmib_set(MIB_IPV6_DHCP_RAPID_COMMIT_ENABLE,(void*)&repid_commit)==0)
+				{
+					printf("set MIB_IPV6_DHCP_RAPID_COMMIT_ENABLE fail!\n");
+					return;
+				}
+				strval=req_get_cstream_var(wp,"dhcpMode","");
+				if(strval[0]){
+					if(strcmp(strval,"stateless")==0)
+						val=IPV6_DHCP_STATELESS;
+					else
+					{
+						val=IPV6_DHCP_STATEFUL;
+						
+					}
+#ifdef TR181_V6_SUPPORT
+					apmib_set(MIB_IPV6_DHCPC_REQUEST_ADDR,(void*)&val);
+#endif
+
+					apmib_set(MIB_IPV6_DHCP_MODE,&val);
+				}
+#ifdef CONFIG_SIXRD_SUPPORT
+				strval=req_get_cstream_var(wp,"6rdMode","");
+				if(strval[0]){
+					if(strcmp(strval,"6rdAuto")==0)
+						val=SIXRD_AUTO;
+					else
+					{
+						val=SIXRD_MANUAL;
+					}
+					apmib_set(MIB_SIXRD_MODE,&val);
+				}
+#endif				
+				strval=req_get_cstream_var(wp,"enable_dhcpv6pd","");	
+				
+				if(strval!=NULL){
+					val = atoi(strval);
+					apmib_set(MIB_IPV6_DHCP_PD_ENABLE,&val);
+				}				
+				
+				strval=req_get_cstream_var(wp,"wan_ip_0","");	
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[0]=strtol(strval,NULL,16);		
+				strval=req_get_cstream_var(wp,"wan_ip_1","");	
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[1]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_ip_2","");
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[2]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_ip_3","");
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[3]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_ip_4","");
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[4]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_ip_5","");
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[5]=strtol(strval,NULL,16);				
+				strval=req_get_cstream_var(wp,"wan_ip_6","");
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[6]=strtol(strval,NULL,16);	
+				strval=req_get_cstream_var(wp,"wan_ip_7","");
+				if(strval!=NULL)
+					addr6_wan.addrIPv6[7]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"prefix_len_ip","");
+				if(strval!=NULL)					
+					addr6_wan.prefix_len=atoi(strval);				
+				apmib_set(MIB_IPV6_ADDR_WAN_PARAM,&addr6_wan);
+
+				strval=req_get_cstream_var(wp,"wan_gw_0","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[0]=strtol(strval,NULL,16);	
+				strval=req_get_cstream_var(wp,"wan_gw_1","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[1]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_gw_2","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[2]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_gw_3","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[3]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_gw_4","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[4]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_gw_5","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[5]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_gw_6","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[6]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_gw_7","");
+				if(strval!=NULL)
+					addr6_gw.addrIPv6[7]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"prefix_len_gw","");
+				if(strval!=NULL)
+					addr6_gw.prefix_len=atoi(strval);
+				apmib_set(MIB_IPV6_ADDR_GW_PARAM,&addr6_gw);				
+
+				if(!apmib_get(MIB_IPV6_DNS_AUTO,  (void *)&val))
+				{
+					printf("get MIB_IPV6_DNS_AUTO failed\n");
+					return -1; 
+				}
+				if(val==0)	//Set DNS Manually 
+				{
+				strval=req_get_cstream_var(wp,"wan_dns1_0","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[0]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_dns1_1","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[1]=strtol(strval,NULL,16);	
+				strval=req_get_cstream_var(wp,"wan_dns1_2","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[2]=strtol(strval,NULL,16);	
+				strval=req_get_cstream_var(wp,"wan_dns1_3","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[3]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_dns1_4","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[4]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_dns1_5","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[5]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_dns1_6","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[6]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"wan_dns1_7","");
+				if(strval!=NULL)
+					addr6_dns.addrIPv6[7]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"prefix_len_dns1","");
+				if(strval!=NULL)
+					addr6_dns.prefix_len=atoi(strval);
+				apmib_set(MIB_IPV6_ADDR_DNS_PARAM,&addr6_dns);
+				}
+
+				/*Get parameters*/
+				getDnsv6Info(&dnsCfgParam);
+				/*Set to Parameters*/
+				set_DnsParam(wp, path, query,&dnsCfgParam);				
+				/*Set to pMIb*/
+				apmib_set(MIB_IPV6_DNSV6_PARAM,&dnsCfgParam);
+
+#ifdef CONFIG_DSLITE_SUPPORT
+				int dslite_enable=0;
+				strval = req_get_cstream_var(wp, ("dsliteEnabled"), "");
+				
+				if(strval!=NULL){
+					//printf("[%s:%d] strVal=%s\n",__FUNCTION__,__LINE__, strval);
+					dslite_enable= atoi(strval);
+					//printf("[%s:%d] dslite_enable=%d\n",__FUNCTION__,__LINE__, dslite_enable);
+				}
+				
+				if ( !apmib_set(MIB_DSLITE_ENABLE, (void *)&dslite_enable)) {
+					printf ("Set MIB_DSLITE_ENABLE error!\n");
+					return;
+				}
+				if (dslite_enable)
+				{
+					int dslite=0;
+					addr6CfgParam_t ipaddr6;
+					char *strAFTR;
+					strval = req_get_cstream_var(wp, ("dsliteMode"), "");
+			
+					if ( strval && strval[0] ) 
+					{
+						if (!strcmp(strval, ("dsliteAuto")))
+							dslite = 0;
+						else if (!strcmp(strval, ("dsliteManual")))
+							dslite = 1;
+
+			
+						if ( !apmib_set(MIB_DSLITE_MODE, (void *)&dslite)) {
+							printf("Set DSLITE MODE MIB error!\n");
+							return;
+						}
+						if(dslite == 1)
+						{
+							strAFTR = req_get_cstream_var(wp, ("dsliteAftrIpAddr6"), "");
+							if(strAFTR[0])
+							{
+								if(inet_pton6(strAFTR, ipaddr6.addrIPv6) == 0)
+								{
+									printf("Invalid AFTR address value!\n");
+									return;
+								}
+								
+								if ( !apmib_set(MIB_IPV6_ADDR_AFTR_PARAM, (void *)&ipaddr6))
+								{
+									printf("Set AFTR MIB error!\n");
+									return;
+								}
+							}
+							else
+							{
+								if ( !apmib_get(MIB_IPV6_ADDR_AFTR_PARAM, (void *)&ipaddr6) )
+								{
+									printf("Get AFTR MIB error!\n");
+									return;
+								}
+							}
+						}
+					}
+				}
+#endif				
+				strval = req_get_cstream_var(wp, ("mldproxyEnabled"), "");
+				if ( !strcmp(strval, "ON"))
+					val = 0;
+				else
+					val = 1;
+				if ( !apmib_set(MIB_MLD_PROXY_DISABLED, (void *)&val)) {
+					printf ("Set MIB_MLD_PROXY_DISABLED error!");
+					return;
+				}
+
+#ifdef CONFIG_SIXRD_SUPPORT
+				/* set 6rd parameters */
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_0","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[0]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_1","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[1]=strtol(strval,NULL,16);	
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_2","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[2]=strtol(strval,NULL,16);	
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_3","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[3]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_4","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[4]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_5","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[5]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_6","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[6]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"IPv6_6rd_ip_7","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.addrIPv6[7]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"prefix_len_6rd","");
+				if(strval!=NULL)
+					addr6_6rd_prefix.prefix_len=atoi(strval);
+				for(i=0;i<8;i++)
+				{
+					if(addr6_6rd_prefix.addrIPv6[i]!=0x0000)
+					{
+						apmib_set(MIB_IPV6_6RD_PREFIX_PARAM,&addr6_6rd_prefix);
+						break;
+					}
+				}
+				strval=req_get_cstream_var(wp,"wanMask","");
+				if(strval!=NULL)
+					val=atoi(strval);
+				apmib_set(MIB_IPV4_6RD_MASK_LEN,&val);
+
+				strval=req_get_cstream_var(wp,"IPv6_6rd_BR_IP","");
+				if ( strval[0] )
+				{
+					if ( !inet_aton(strval, &Ip4addr) )
+					{
+						printf ("Set 6rd BR IP error!\n");
+						return;
+					}
+					if ( !apmib_set(MIB_IPV4_6RD_BR_ADDR, (void *)&Ip4addr))
+					{
+		  				printf("Set MIB_IPV4_6RD_BR_ADDR error!\n");
+					}
+				}
+#endif
+
+#ifdef CONFIG_IP6IP_TUNNEL_SUPPORT
+				/* set ipv6 in ipv4 tunnel parameters */
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_0","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[0]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_1","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[1]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_2","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[2]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_3","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[3]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_4","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[4]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_5","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[5]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_6","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[6]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6iplocal_ip_7","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.addrIPv6[7]=strtol(strval,NULL,16);
+				if(strval!=NULL)
+				strval=req_get_cstream_var(wp,"prefix_len_ip6iplocal","");
+				if(strval!=NULL)
+					localaddr6_ip6ip.prefix_len=atoi(strval);
+				for(i=0;i<8;i++)
+				{
+					if(localaddr6_ip6ip.addrIPv6[i]!=0x0000)
+					{
+						apmib_set(MIB_IPV6_ADDR_WAN_PARAM,&localaddr6_ip6ip);
+						break;
+					}
+				}
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_0","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[0]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_1","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[1]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_2","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[2]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_3","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[3]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_4","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[4]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_5","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[5]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_6","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[6]=strtol(strval,NULL,16);
+				strval=req_get_cstream_var(wp,"ip6ipremote_ip_7","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.addrIPv6[7]=strtol(strval,NULL,16);				
+				strval=req_get_cstream_var(wp,"prefix_len_ip6ipremote","");
+				if(strval!=NULL)
+					remoteaddr6_ip6ip.prefix_len=atoi(strval);
+				for(i=0;i<8;i++)
+				{
+					if(remoteaddr6_ip6ip.addrIPv6[i]!=0x0000)
+					{
+						apmib_set(MIB_IPV6_IP6IP_REMOTE_ADDR6_PARAM,&remoteaddr6_ip6ip);
+						break;
+					}
+				}
+				strval=req_get_cstream_var(wp,"remoteIP","");
+				if ( strval[0] )
+				{
+					if ( !inet_aton(strval, &Ip4addr) )
+					{
+						printf ("Set ip6ip tunnel remote IP error!\n");
+						return;
+					}
+					if ( !apmib_set(MIB_IPV6_IP6IP_REMOTE_ADDR, (void *)&Ip4addr))
+					{
+						printf("Set MIB_IPV6_IP6IP_REMOTE_ADDR error!\n");
+					}
+				}
+#endif
 	
 			}
 			/*Update it to flash*/
 			apmib_update(CURRENT_SETTING);	
 		}
-			
 		submitUrl = req_get_cstream_var(wp, "submit-url", "");	 // hidden page
 		OK_MSG(submitUrl);
 		return;
 		
+}
+static void setIpv6Dhcps(request *wp, char *path, char *query)
+{
+	dhcp6sCfgParam_t dhcp6sCfgParam;
+	addr6CfgParam_t	addr6;
+	char tmpBuf[256];
+	char *submitUrl;
+	char* value;
+	char* strval0;
+	char* strval1;
+#ifdef CONFIG_IPV6_CE_ROUTER_SUPPORT
+	addr6CfgParam_t	ula_addr6;
+	int val;
+#endif
+
+	
+	/*Get parameters**/
+	getDhcpv6sInfo(&dhcp6sCfgParam);
+	
+	getLanAddv6Info(&addr6);
+	sprintf(tmpBuf,"ifconfig br0 del %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x/%d 2> /dev/null",
+						addr6.addrIPv6[0],addr6.addrIPv6[1],addr6.addrIPv6[2],
+						addr6.addrIPv6[3],addr6.addrIPv6[4],addr6.addrIPv6[5],
+						addr6.addrIPv6[6],addr6.addrIPv6[7],addr6.prefix_len);
+	system(tmpBuf);
+
+	/*Set to Parameters*/
+	//if((0 == strcmp(req_get_cstream_var(wp,"submit",""), "Save"))||(0 == strcmp(req_get_cstream_var(wp, ("save_apply"), ""), "Save & Apply")))
+	strval0=req_get_cstream_var(wp,"submit","");
+	strval1=req_get_cstream_var(wp, ("save_apply"), "");
+	if(strval0[0]||strval1[0])
+	{
+		int val;
+		if(!apmib_get(MIB_IPV6_WAN_ENABLE,&val)){		
+			fprintf(stderr, "get mib %d error!\n", MIB_IPV6_WAN_ENABLE);
+			return ;			
+		}
+		else if(val!=0)
+		{
+
+		value=req_get_cstream_var(wp,"ipv6lanOrigin","");
+		val = atoi(value);//0:auto 1:mode
+		apmib_set(MIB_IPV6_LAN_ORIGIN,&val);
+
+		if(val){ // only update IPV6_ADDR_LAN_PARAM mib when lan manual mode.
+		set_lan_addr6(wp, path, query,&addr6);
+		apmib_set(MIB_IPV6_ADDR_LAN_PARAM,&addr6);
+		}
+		
+		set_DhcpSParam(wp, path, query,&dhcp6sCfgParam);
+		apmib_set(MIB_IPV6_DHCPV6S_PARAM,&dhcp6sCfgParam);
+
+#ifdef CONFIG_IPV6_CE_ROUTER_SUPPORT
+		/* ula address */
+		value=req_get_cstream_var(wp,"enable_ula","");
+		val = atoi(value);
+		apmib_set(MIB_IPV6_ULA_ENABLE,&val);
+
+		value=req_get_cstream_var(wp,"ula_mode","");
+		if(!strcmp(value,"ulaManual"))
+			val = 0;
+		else
+			val = 1;
+		apmib_set(MIB_IPV6_ULA_MODE,&val);
+
+		if(val == 0)
+		{
+			set_ula_addr6(wp, path, query,&ula_addr6);
+			apmib_set(MIB_IPV6_ADDR_ULA_PARAM,&ula_addr6);
+		}
+		else
+		{
+			memset(&ula_addr6, 0, sizeof(addr6CfgParam_t));
+			create_ula_prefix(&ula_addr6);
+			apmib_set(MIB_IPV6_ADDR_ULA_PARAM,&ula_addr6);
+		}
+#endif
+
+		}
+		/*Update it to flash*/
+		apmib_update(CURRENT_SETTING);	
+	}	
+	
+	/*create the config file*/
+	create_Dhcp6CfgFile(&dhcp6sCfgParam);	
+	
+	/*start the Daemon*/
+#if 0
+#ifndef NO_ACTION
+	sprintf(tmpBuf,"ifconfig br0 add %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x/%d",
+					addr6.addrIPv6[0],addr6.addrIPv6[1],addr6.addrIPv6[2],
+					addr6.addrIPv6[3],addr6.addrIPv6[4],addr6.addrIPv6[5],
+					addr6.addrIPv6[6],addr6.addrIPv6[7],addr6.prefix_len);
+	system(tmpBuf);
+	sprintf(tmpBuf,"%s %s",_IPV6_DHCPV6S_SCRIPT_PROG, dhcp6sCfgParam.interfaceNameds);
+	system(tmpBuf);
+#endif
+
+#endif
+	return;
 }
 
 

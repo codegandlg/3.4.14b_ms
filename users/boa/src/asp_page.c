@@ -358,6 +358,7 @@ form_name_t root_form[] = {
 	{"formDhcpv6s", formDhcpv6s},
 	{"formIPv6Addr", formIPv6Addr},
 	{"formIpv6Setup", formIpv6Setup},
+	{"formNewIpv6Setup", formNewIpv6Setup},
 #ifdef CONFIG_MAP_E_SUPPORT
 	{"formMapE", formMapE},
 #endif

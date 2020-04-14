@@ -106,6 +106,17 @@
 			            	<div class="terminalSelect">
 			            		<table border="0" width="500">
 								  <tr><label style="font-size: 16px;border-left: 3px solid #89CEED;padding-left: 15px;" class="i18n" name="terminal_list_parent"></label></tr>
+								  <!--
+                                  	作者：offline
+                                  	时间：2020-04-01
+                                  	描述：<% parentContrlTerminalList(); %>
+                                  -->
+								  <!--<table width="500" border="0">
+								  <tbody><tr></tr>
+								  <tr class="tbl_body"><td width="12%" align="left"><p>chenligui</p></td><td width="6%" align="left"><p>8C:EC:4B:B7:2D:A3</p><input type="hidden" name="parentContrlSta0" value="8C:EC:4B:B7:2D:A3" size="2"></td>
+<td width="4%" align="center"><input type="checkbox" name="terminalSelect0" value="ON"></td></tr>
+<tr class="tbl_body"><td width="12%" align="left"><p>MI8-xiaomishouji</p></td><td width="6%" align="left"><p>94:87:E0:5B:4A:0B</p><input type="hidden" name="parentContrlSta1" value="94:87:E0:5B:4A:0B" size="2"></td>
+<td width="4%" align="center"><input type="checkbox" name="terminalSelect1" value="ON"></td></tr></tbody></table>-->
 								  <% parentContrlTerminalList(); %>
 								 </table>
 			            	</div>
@@ -194,13 +205,15 @@
 
 				var data_List=[];
 				var tab_data=<% parentContrlList(); %>;
+				//var tab_data={"select1":[{"parentContrlMon":"0","parentContrlWeekTues":"0","parentContrlWeekThur":"0","parentContrlWeekWed":"0","parentContrlWeekThur":"0","parentContrlWeekFri":"0","parentContrlWeekSat":"1","parentContrlWeekSun":"1","parentContrlStartTime":"0","parentContrlEndTime":"180","parentContrlTerminal":"MI8-xiaomishouji;"}],"select2":[{"parentContrlMon":"1","parentContrlWeekTues":"0","parentContrlWeekThur":"0","parentContrlWeekWed":"0","parentContrlWeekThur":"0","parentContrlWeekFri":"1","parentContrlWeekSat":"0","parentContrlWeekSun":"0","parentContrlStartTime":"0","parentContrlEndTime":"360","parentContrlTerminal":"MI8-xiaomishouji;"}]};
+
 				for(var i in tab_data){					
 					data_List.push(tab_data[i][0]);
 				}
 				
 				var title1,title2,title3,title4,title5,title6,title7,title8,title9,title10,title11;
 				if(i18nLanguage=='en'){
-					title1="Monday";title2="Tuesday";title3="Wednesday";title4="Thursday";title5="Friday";title6="Saturday";title7="SundaySunday";title8="StartTime";title9="EndTime";title10="Managemen Terminal";title11="Operation";
+					title1="Monday";title2="Tuesday";title3="Wednesday";title4="Thursday";title5="Friday";title6="Saturday";title7="Sunday";title8="StartTime";title9="EndTime";title10="Terminalist";title11="Operation";
 				}else{
 					title1="星期一";title2="星期二";title3="星期三";title4="星期四";title5="星期五";title6="星期六";title7="星期日";title8="起始时间";title9="结束时间";title10="管理终端";title11="操作";				
 				}
@@ -417,9 +430,11 @@
 			$(".popup,.popbox").css("display","none");
 		}
 		function submitClick(){
-			
-			var parent_start_time_value=$("#hours option:selected").val();
-			var parent_end_time_value=$("#hours2 option:selected").val();
+			//var tab_data={"select1":[{"parentContrlMon":"0","parentContrlWeekTues":"0","parentContrlWeekThur":"0","parentContrlWeekWed":"0","parentContrlWeekThur":"0","parentContrlWeekFri":"0","parentContrlWeekSat":"1","parentContrlWeekSun":"1","parentContrlStartTime":"0","parentContrlEndTime":"180","parentContrlTerminal":"MI8-xiaomishouji;"}],"select2":[{"parentContrlMon":"1","parentContrlWeekTues":"0","parentContrlWeekThur":"0","parentContrlWeekWed":"0","parentContrlWeekThur":"0","parentContrlWeekFri":"1","parentContrlWeekSat":"0","parentContrlWeekSun":"0","parentContrlStartTime":"0","parentContrlEndTime":"360","parentContrlTerminal":"MI8-xiaomishouji;"}]};
+			var tab_data=<% parentContrlList(); %>;
+			var parent_start_time_value=$("#hours option:selected").val(); //开始时间，小时
+			var parent_end_time_value=$("#hours2 option:selected").val();  //结束时间
+			//var start_time_minutes=$("#minutes option:selected").val(); //开始时间，分钟
 			if(parent_start_time_value==""||parent_end_time_value==""){
 				if(i18nLanguage=='en'){
 					alert("Please select start time or end time");
@@ -428,10 +443,10 @@
 				}
 				return false;
 			}else{
-				var start_time_hours=$("#hours option:selected").val();
-				var start_time_minutes=$("#minutes option:selected").val();
-				var end_time_hours=$("#hours2 option:selected").val();
-				var end_time_minutes=$("#minutes2 option:selected").val();
+				var start_time_hours=$("#hours option:selected").val();   //开始时间，小时
+				var start_time_minutes=$("#minutes option:selected").val(); //开始时间，分钟
+				var end_time_hours=$("#hours2 option:selected").val();  //结束时间，小时
+				var end_time_minutes=$("#minutes2 option:selected").val();  //结束时间，分钟
 				var start_1=parseInt(start_time_hours)*60+parseInt(start_time_minutes);
 				var end_1=parseInt(end_time_hours)*60+parseInt(end_time_minutes);
 				if(start_1>=end_1){
@@ -445,22 +460,82 @@
 					$("#parent_start_time").val(start_1);
 					$("#parent_end_time").val(end_1);
 				}
-			popCenterWindow();
-			$(".popup").show();			 	
-			$(".popup,.popbox").css("display","block");
-			$("#myModal").css("display","none");
+			
+			
+			//校验分组重复   start	
+			var mon=document.formParentContrlAdd.Mon.checked; if(!mon) mon="0"; else mon="1";  //星期一
+			var tues=document.formParentContrlAdd.Tues.checked; if(!tues) tues="0"; else tues="1"  //星期二
+			var wed=document.formParentContrlAdd.Wed.checked; if(!wed) wed="0";  else wed="1"//星期三
+			var thur=document.formParentContrlAdd.Thur.checked; if(!thur) thur="0"; else thur="1" //星期四
+			var fri=document.formParentContrlAdd.Fri.checked; if(!fri) fri="0";  else fri="1"//星期五
+			var sat=document.formParentContrlAdd.Sat.checked; if(!sat) sat="0";  else sat="1"//星期六
+			var sun=document.formParentContrlAdd.Sun.checked; if(!sun) sun="0";  else sun="1"//星期天
+			
+			var start_t_hours=$("#hours option:selected").val();   //开始时间，小时
+			var start_t_minutes=$("#minutes option:selected").val(); //开始时间，分钟
+			var end_t_hours=$("#hours2 option:selected").val();  //结束时间，小时
+			var end_t_minutes=$("#minutes2 option:selected").val();  //结束时间，分钟 terminalSelect1
+			
+			var start_t=parseInt(start_t_hours)*60+parseInt(start_t_minutes);
+			var end_t=parseInt(end_t_hours)*60+parseInt(end_t_minutes);
+			
+			var s_terminal=[]; var check_object=Object;
+			
+			for(var i=0;i<10;i++){
+				var a=$("input[name='terminalSelect"+i+"']").is(":checked");
+				var b=$("input[name='terminalSelect"+i+"']").parent().parent().find("td:eq(0)").find("p").text();
+				if(a){
+					s_terminal.push(b);
+				}
 			}
+			s_terminal=s_terminal.toString();
+			s_terminal=s_terminal.replace(/,/g,";")+";"
+			check_object={
+				parentContrlMon:mon,
+            	parentContrlWeekTues:tues,
+            	parentContrlWeekThur:wed,
+            	parentContrlWeekWed:thur,
+            	parentContrlWeekFri:fri,
+            	parentContrlWeekSat:sat,
+            	parentContrlWeekSun:sun,
+            	parentContrlStartTime:start_t.toString(),
+            	parentContrlEndTime:end_t.toString(),
+            	parentContrlTerminal:s_terminal
+			}
+			
+			var aa=check_object;
+			
+			for(var s in tab_data){
+				var bb=tab_data[s]
+				var aaa=bb[0];
+				if(JSON.stringify(aa)==JSON.stringify(aaa)){
+					if(i18nLanguage=='en'){
+						alert("Your group repeat");
+					}else{
+						alert("分组重复");
+					}
+					return false;
+				}
+			}
+			//分组重复   end
+			
+			
 			var check_value=$(".terminalSelect").find("input[type='checkbox']").is(":checked");
 			//console.log($(".terminalSelect").html());
-			if(check_value){				
-				return true;
-			}else{
+			if(!check_value){	
 				if(i18nLanguage=='en'){
 					alert("Please select control terminal");
 				}else{
 					alert("请选择控制终端！");
 				}
 				return false;
+			}
+			
+			//等待加载
+			popCenterWindow();
+			$(".popup").show();			 	
+			$(".popup,.popbox").css("display","block");
+			$("#myModal").css("display","none");
 			}
 			
 			return true;

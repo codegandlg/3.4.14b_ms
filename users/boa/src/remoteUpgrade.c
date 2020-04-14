@@ -1082,7 +1082,7 @@ void remoteChekUpgrade()
  }
  else
  {
-  // printf("=====>receiveData:\n%s\n",recvDataPtr);
+   printf("=====>receiveData:\n%s\n",recvDataPtr);
    remoteUpgradeInfo=getUpgradeFileInfo(remoteUpgradeInfo,recvDataPtr);
   // printf("++++>downurl=%s md5=%s\n",remoteUpgradeInfo.downloadUrl,remoteUpgradeInfo.md5);
 

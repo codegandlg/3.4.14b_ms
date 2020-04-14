@@ -102,9 +102,9 @@
             	$('#tableL0'+(i)+'').bootstrapTable('destroy');   //动态加载表格之前，先销毁表格
             	var title1,title2,title3,title4,title5,title6,title7,title8,title9;
 				if(i18nLanguage=='en'){
-					title1="Brand";title2="Equipment Name";title3="IP Address";title4="Mac Address";title5="Rssi";title6="Rssi";title7="Connect Channel";title8="Upstream Rate";title9="Downstream Rate";
+					title1="Brand";title2="Equipment Name";title3="IP Address";title4="MAC Address";title5="Rssi";title6="Rssi";title7="Connect Ways";title8="Upstream Rate";title9="Downstream Rate";
 				}else{
-					title1="品牌";title2="设备名称";title3="Ip地址";title4="Mac地址";title5="Rssi";title6="信号强度";title7="连接频道";title8="上行速率";title9="下行速率";				
+					title1="品牌";title2="设备名称";title3="IP地址";title4="MAC地址";title5="Rssi";title6="信号强度";title7="连接方式";title8="上行速率";title9="下行速率";				
 				}
 
 
@@ -210,7 +210,17 @@
 	                {field: 'station_mac', title: title4, sortable: false},
 	                {field: 'station_link_time', title: title5, sortable: false,visible: false},
 	                {field: 'station_rssi', title: title6, sortable: false},
-	                {field: 'station_connected_band', title: title7, sortable: false},
+	                {field: 'station_connected_band', title: title7, sortable: false,formatter:function(value, row, index){
+	                	if(value=="ETHERNET"){
+	                		if(i18nLanguage=='en'){
+	                			return "ETHERNET";
+	                		}else{
+	                			return "有线连接";
+	                		}
+	                	}else{
+	                		return value;
+	                	}
+	                }},
 	                {field: 'station_downlink', title: title8, sortable: false,visible: false},
 	                {field: 'station_uplink', title: title9, sortable: false,visible: false}
 			]

@@ -18,12 +18,15 @@
 			.popup,.popbox{
 				display: none;
 			}
+			.ip_filter label{
+				width: 120px;
+				text-align: right;
+			}
 		</style>
 		
 	</head>
 	<body onload="Load_Setting();">
 		<div class="guest_net_parent">
-			<div class="IpFilter">
 				<form action="/boafrm/formFilter" method="POST" name="formFilterAdd">
 				<div class="form-group" style="margin-bottom: 10px;">
 					<div class="intell guest_mode i18n" name="macFliter_title_ipfilter">&nbsp;</div>
@@ -32,8 +35,10 @@
 					</div>
 				</div>
 				<div class="form-group_smart"><p class="p_tips i18n" name="p_tips_ipfilter"></p></div>
-				<div class="form-group_smart ip_filter"><label class="i18n" name="origin_address_ipfilter"></label><input class="form_input ipfilter_input" type="text"  id="ipfilter_input1"/>.<input class="form_input ipfilter_input" type="text"  id="ipfilter_input2"/>.<input class="form_input ipfilter_input" type="text" id="ipfilter_input3" />.<input class="form_input ipfilter_input" type="text" id="ipfilter_input4" /></div>
-				<input type="hidden" name="ip" id="ip_value_ipfilter" />
+				<div class="form-group_smart ip_filter">
+					<label class="i18n" name="origin_address_ipfilter"></label>
+					<input type="text"  name="ip"/><span class="i18n" name="ipFilter_tips">&nbsp;&nbsp;</span>
+				</div>
 				<input type="hidden" name="lan_mask" value="<% getInfo("mask-rom"); %>">
 				<div class="longTime form-group ip_filter">
 					<label style="font-size: 16px;color: #4d4d4d;" class="i18n" name="potorl_ipfilter"></label>
@@ -63,9 +68,8 @@
 					</div>
 					<input type="hidden" value="/ipfilter.html" name="submit-url">
 			    </div>
-			   </form>
-			</div>
-			<div class="popup"></div>
+			  </form>
+			 <div class="popup"></div>
 				<div class="popbox window" id="center">
 					<div class="loading">
 			    
@@ -77,10 +81,11 @@
 					  <i></i>
 					  <i></i>
 					</p>
-					<!--<span class="inloading i18n" name="inloading"></span>-->
 					</div>
+					
 				</div>
 		</div>
+		
 		<script src="js/jquery.js"></script>
 		<script src="js/bootstrap.js"></script>
 		<script src="js/bootstrap-switch.min.js"></script>
@@ -90,74 +95,17 @@
 	    <script src="js/language.js"></script>
 	    <script type="text/javascript">
 	    	 var i18nLanguage=getCookie('userLanguage');
-	    	$(document).ready(function(){
-	    		$('#checkbox_switch1').bootstrapSwitch({
-					onText: "",
-					offText: "",
-					onColor: "success",
-					offColor: "info",
-					size: "small",
-					onSwitchChange: function(event, state) {
-						if (state == true) {
-							enableTextField(document.formFilterAdd.ip);
-							enableTextField(document.formFilterAdd.protocol);
-							$(".checkbox_switch1").val("ON");
-							updateState();
-						} else {
-							disableTextField(document.formFilterAdd.ip);
-						  	disableTextField(document.formFilterAdd.protocol);
-							$(".checkbox_switch1").val("OFF");
-							updateState();
-						}
-					}
-				});
-	    	});
-			$(document).ready(function(){
-				$("#ipfilter_input1").keydown(function(e){
-					if($("#ipfilter_input1").val().length==3){
-						if(e.keyCode==8||e.keyCode==46){
-							$("#ipfilter_input1").focus();
-						}else{
-							$("#ipfilter_input2").focus();
-						}						
-					}
-					if($("#ipfilter_input1").val().length>1){
-						if(e.keyCode==102){
-							$("#ipfilter_input2").focus();
-						}
-					}
-					
-				})
-				$("#ipfilter_input2").keydown(function(e){
-					if($("#ipfilter_input2").val().length==3){
-						if(e.keyCode==8||e.keyCode==46){
-							$("#ipfilter_input2").focus();
-						}else{
-							$("#ipfilter_input3").focus();
-						}
-					}
-					if($("#ipfilter_input2").val().length>1){
-						if(e.keyCode==102){
-							$("#ipfilter_input3").focus();
-						}
-					}
-				})
-				$("#ipfilter_input3").keydown(function(e){
-					if($("#ipfilter_input3").val().length==3){
-						if(e.keyCode==8||e.keyCode==46){
-							$("#ipfilter_input3").focus();
-						}else{
-							$("#ipfilter_input4").focus();
-						}
-					}
-					if($("#ipfilter_input3").val().length>1){
-						if(e.keyCode==102){
-							$("#ipfilter_input4").focus();
-						}
-					}
-				})
-			})
-			//弹出窗口******start********
+	    	 var okmsg_btn,ipfilter_ipaddr_not_within_subnet,ipfilter_ipaddr_invalid;
+	    	 if(i18nLanguage=='en'){
+	    	 	okmsg_btn = '  OK  ';
+	    	 	ipfilter_ipaddr_not_within_subnet = 'Invalid IP address! It should be set within the current subnet.';
+	    	 	ipfilter_ipaddr_invalid='Invalid IP address';
+	    	 }else{
+	    	 	okmsg_btn = '  确定  ';
+	    	 	ipfilter_ipaddr_not_within_subnet = '无效的IP地址!必须设在当前子网下.';
+	    	 	ipfilter_ipaddr_invalid = '无效的IP地址';
+	    	 }
+	    	//弹出窗口******start********
 			//获取窗口的高度 
 			 var windowHeight; 
 			 //获取窗口的宽度 
@@ -183,47 +131,88 @@
 			      //设定窗口的位置 
 			     $("#center").css("top",popY).css("left",popX).slideToggle("slow");  
 		      }
-	    	var i18nLanguage=getCookie('userLanguage');
-	    	var ipfilter_ipaddr_invalid;
-	    	if(i18nLanguage=='en'){
-	    		ipfilter_ipaddr_invalid='Invalid IP address';
-	    	}else{
-	    		ipfilter_ipaddr_invalid = '无效的IP地址';
-	    	}
+	    	
 	    	//弹出窗口******end********
+	    	$(document).ready(function(){
+	    		$('#checkbox_switch1').bootstrapSwitch({
+					onText: "",
+					offText: "",
+					onColor: "success",
+					offColor: "info",
+					size: "small",
+					onSwitchChange: function(event, state) {
+						if (state == true) {
+							enableTextField(document.formFilterAdd.ip);
+							enableTextField(document.formFilterAdd.protocol);
+							enableTextField(document.formFilterAdd.ip);
+							$(".checkbox_switch1").val("ON");
+							updateState();
+						} else {
+							disableTextField(document.formFilterAdd.ip);
+						  	disableTextField(document.formFilterAdd.protocol);
+						  	disableTextField(document.formFilterAdd.ip);
+							$(".checkbox_switch1").val("OFF");
+							updateState();
+						}
+					}
+				});
+	    	});
+
+			
 	    	function addClick()
 			{
-				var ipfilter_input_value=$("#ipfilter_input1").val()+"."+$("#ipfilter_input2").val()+"."+$("#ipfilter_input3").val()+"."+$("#ipfilter_input4").val()
-			  	$("#ip_value_ipfilter").val(ipfilter_input_value);
-			  if (!document.formFilterAdd.enabled.checked){
-			  	popCenterWindow();
-			 	$(".popup").show();
-				$(".popup,.popbox").css("display","block");
+				var localhostIP=window.location.host;
+				var getIpValue=document.formFilterAdd.ip.value;
+				if(document.formFilterAdd.ip.value) {
+					if(isEqualIPAddress(localhostIP,getIpValue,document.formFilterAdd.lan_mask.value)==false){
+						return false;
+					}
+				 }
+			  	if (!document.formFilterAdd.enabled.checked)		  
+				   popCenterWindow();
+				 	$(".popup").show();
+					$(".popup,.popbox").css("display","block");
 				//********进度条相关***********
 			  	return true;
-			  }
-			  	
 			
-			  if (document.formFilterAdd.ip.value=="" && document.formFilterAdd.comment.value=="" ){
+			  if (document.formFilterAdd.ip.value=="" && document.formFilterAdd.comment.value=="" )
 			  	popCenterWindow();
 			 	$(".popup").show();
 				$(".popup,.popbox").css("display","block");
 				//********进度条相关***********
 				return true;
-			  }
+				if(document.formFilterAdd.ip.value) {
+					if(checkHostIPValid(document.formFilterAdd.ip, document.formFilterAdd.lan_mask, ipfilter_ipaddr_invalid) == false)
+						return false;
+				}
 				
-			//if($("#ipfilter_input1").val().length!=0&&$("#ipfilter_input2").val().length!=0&&$("#ipfilter_input3").val().length!=0&&$("#ipfilter_input4").val().length!=0){
-				if( checkHostIPValid(document.formFilterAdd.ip,document.formFilterAdd.lan_mask, ipfilter_ipaddr_invalid) == false)
-			  	return false;
-			//}
-			  
-			  popCenterWindow();
-			 	$(".popup").show();
+				
+				
+
+				popCenterWindow();
+				$(".popup").show();
 				$(".popup,.popbox").css("display","block");
 				//********进度条相关***********
 			  return true;
 			}
 			
+			function isEqualIPAddress(addr1, addr2, mask) {				
+					var res1 = [],res2 = [];
+					addr1 = addr1.split(".");
+					addr2 = addr2.split(".");
+					mask = mask.split(".");
+					for(var i = 0, ilen = addr1.length; i < ilen; i += 1) {
+						res1.push(parseInt(addr1[i]) & parseInt(mask[i]));
+						res2.push(parseInt(addr2[i]) & parseInt(mask[i]));
+					}
+					if(res1.join(".") == res2.join(".")) {					
+						return true;
+					} else {
+						alert(ipfilter_ipaddr_not_within_subnet);
+						//window.location.href=window.location.host;
+						return false;
+					}
+				}
 			
 			function deleteClick()
 			{

@@ -30,7 +30,7 @@
 #define LOGIN_URL
 
 
-#define NEW_POST
+//#define NEW_POST	 
 //#define USE_AUTH
 #define CSRF_SECURITY_PATCH
 
