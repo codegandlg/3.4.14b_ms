@@ -13,6 +13,8 @@ var wlan_num =<% getIndex("show_wlan_num"); %> ;
 var wlan1Disabled = 0, wlan2Disabled = 0;
 var role=<% getIndex("multi_ap_controller"); %> ;
 
+var backhaul_radio=<% getIndex("backhaul_link"); %>;
+
 function loadInfo()
 {
 
@@ -40,8 +42,27 @@ function loadInfo()
 		document.getElementById("role_prev").value = "agent";
 	}
 
+	document.getElementById("controller_backhaul").style.display = "none";
+	document.getElementById("agent_backhaul").style.display = "none";
+
+	if (role) {
+		if (backhaul_radio == 1) {
+			document.getElementById("controller_backhaul_wlan1").checked = true;
+			document.getElementById("agent_backhaul_wlan1").checked = true;
+		} else {
+			document.getElementById("controller_backhaul_wlan0").checked = true;
+			document.getElementById("agent_backhaul_wlan0").checked = true;
 }
 
+		if (role == 1) {
+			document.getElementById("controller_backhaul").style.display = "";
+			document.getElementById("agent_backhaul").style.display = "none";
+		} else if (role == 2) {
+			document.getElementById("controller_backhaul").style.display = "none";
+			document.getElementById("agent_backhaul").style.display = "";
+		}
+	}
+}
 
 function resetClick()
 {
@@ -55,6 +76,11 @@ function saveChanges()
 	if (!document.getElementById("role_disabled").checked) {
 		if ("" == document.getElementById("device_name_text").value) {
 			alert("Device Name cannot be empty.");
+			return false;
+		}
+
+		if (document.getElementById("device_name_text").value.length > 32) {
+			alert("Device Name should be less or equal to 32 characters.");
 			return false;
 		}
 	}
@@ -82,17 +108,47 @@ function saveChanges()
     return true;
 }
 
-function isControllerOnChange(){
+function isControllerOnChange()
+{
 	if (document.getElementById("role_controller").checked == true) {
 		role = 1;
+		document.getElementById("controller_backhaul").style.display = "";
+		document.getElementById("agent_backhaul").style.display = "none";
 	} else if (document.getElementById("role_agent").checked == true){
 		role = 2;
+		document.getElementById("controller_backhaul").style.display = "none";
+		document.getElementById("agent_backhaul").style.display = "";
 	} else {
 		role = 0;
+		document.getElementById("controller_backhaul").style.display = "none";
+		document.getElementById("agent_backhaul").style.display = "none";
+}
+
+	if (backhaul_radio == 1) {
+		document.getElementById("controller_backhaul_wlan1").checked = true;
+		document.getElementById("agent_backhaul_wlan1").checked = true;
+	} else {
+		document.getElementById("controller_backhaul_wlan0").checked = true;
+		document.getElementById("agent_backhaul_wlan0").checked = true;
 	}
 }
 
-
+function isBackhaulOnChange()
+{
+	if(role == 1) {
+		if (document.getElementById("controller_backhaul_wlan1").checked == true){
+			backhaul_radio = 1;
+		} else {
+			backhaul_radio = 0;
+		}
+	} else if(role == 2) {
+		if (document.getElementById("agent_backhaul_wlan1").checked == true){
+			backhaul_radio = 1;
+		} else {
+			backhaul_radio = 0;
+		}
+	}
+}
 
 </SCRIPT>
 </head>
@@ -128,6 +184,9 @@ function isControllerOnChange(){
 		<input type="radio" id="role_agent" name="role" value="agent" onclick="isControllerOnChange()">Agent&nbsp;&nbsp;
 		<input type="radio" id="role_disabled" name="role" value="disabled" onclick="isControllerOnChange()">Disabled</td>
 	</tr>
+
+	<% showBackhaulSelection() %>
+
 	<tr id="wsc_trigger">
 
 	</tr>

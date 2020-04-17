@@ -95,8 +95,12 @@ enum DEV_TYPE{
 
 int get_dev_type(char *p_dst)
 {
-	if (strlen(p_dst) != strlen("00:00:00:00:00:00"))
+	unsigned int addr[6] = {0};
+
+	if (6 != sscanf(p_dst, "%02X:%02X:%02X:%02X:%02X:%02X", &addr[0], &addr[1], &addr[2], &addr[3],&addr[4],&addr[5]))
+	{
 		return TYPE_HOSTNAME;
+	}
 
 	return TYPE_MAC;
 }
@@ -278,8 +282,7 @@ int parentContrlList()
   		fprintf(stderr, "Get table entry error!\n");
 		return -1;
 	}
-    
-	for (i=1; i<=parentEntryNum; i++) 
+	for (i=1; i<(parentEntryNum+1); i++) 
 	{
 
 		*((char *)&entry) = (char)i;
@@ -287,12 +290,12 @@ int parentContrlList()
 		//	memset(&entry, 0x00, sizeof(entry));
 		if ( !apmib_get(MIB_PARENT_CONTRL_TBL, (void *)&entry))
 			return -1;
-		//printf("------>function_%s_line[%d]: terminalNUm=%d\n",__FUNCTION__,__LINE__,parentEntryNum);
-
-		//printf("\n(---+++++table--%d)tmpMon=%d tmpTues=%d  tmpWed=%d  tmpThur=%d  tmpFri=%d tmpSat=%d  tmpSun=%d  tmpstart=%d  tmpend=%d terminal=%s\n", \
+#if 0
+		printf("\n(---+++++table--%d)tmpMon=%d tmpTues=%d  tmpWed=%d  tmpThur=%d  tmpFri=%d tmpSat=%d  tmpSun=%d  tmpstart=%d  tmpend=%d terminal=%s\n", \
 		i,entry.parentContrlWeekMon,entry.parentContrlWeekTues,entry.parentContrlWeekWed,\
 		entry.parentContrlWeekThur,entry.parentContrlWeekFri,entry.parentContrlWeekSat, \
 		entry.parentContrlWeekSun, entry.parentContrlStartTime,entry.parentContrlEndTime,entry.parentContrlTerminal);
+#endif
 		//getCurrentTime(currentTimeInfo);
 		curentTime=(currentTimeInfo->tm_hour*60+currentTimeInfo->tm_min);
 		if((currentTimeInfo->tm_wday==(entry.parentContrlWeekMon?MONDAY:WEEK_TIME_DISABLED)) \
@@ -303,9 +306,9 @@ int parentContrlList()
 		||(currentTimeInfo->tm_wday==(entry.parentContrlWeekSat?SATDAY:WEEK_TIME_DISABLED)) \
 		||(currentTimeInfo->tm_wday==(entry.parentContrlWeekSun?SUNDAY:WEEK_TIME_DISABLED))) \
 		{
-		 	//printf("------>function_%s_line[%d]: parent week is ok \n",__FUNCTION__,__LINE__);
 		 if((curentTime>=entry.parentContrlStartTime)&&(curentTime<=entry.parentContrlEndTime) )
 		 {
+// 		 printf("------>function_%s_line[%d]: parentContrlTerminal=%s \n",__FUNCTION__,__LINE__,entry.parentContrlTerminal);
 			if (isNeedSetIptables(entry.parentContrlTerminal) == 1)
 			{
 				memset(commandBuf,0,sizeof(commandBuf));
@@ -314,11 +317,14 @@ int parentContrlList()
 			}
 
 		 }
-		 else if((curentTime>entry.parentContrlEndTime)&&(curentTime<=(entry.parentContrlEndTime+1)))
-		 {	 
+		 else 
+		 {	
+                         if (isNeedSetIptables(entry.parentContrlTerminal) != 1)
+                        { 
 		    memset(commandBuf,0,sizeof(commandBuf));
 		 	sprintf(commandBuf,PARENT_CONTRL_DELETE_COMMAND,i);
 		 	system(commandBuf);
+                       }
 		 }
 		}
 	}

@@ -217,6 +217,9 @@ asp_name_t root_asp[] = {
 #if defined(CONFIG_APP_ZIGBEE)
 	{"zigbee_dev_list",zigbee_dev_list},
 #endif
+#if defined(BACKHAUL_LINK_SELECTION)
+	{"showBackhaulSelection",showBackhaulSelection},
+#endif
     {"setWlanIDX",setWlanIDX},
     {"showMeshTopology",showMeshTopology},
     {"getTotalOnlineClientNum",getTotalOnlineClientNum},

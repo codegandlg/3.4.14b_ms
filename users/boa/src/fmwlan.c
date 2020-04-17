@@ -9791,7 +9791,26 @@ void sigHandler_autoconf(int signo)
 	}
 #endif
 
+#ifdef RTK_MULTI_AP
+    FILE *fp;
+    unsigned char skip_init = 0;
+	char map_wps_interface[11] = {0};
+	char cmd[128] = {0};
+	if(NULL != (fp = fopen("/tmp/map_wps_interface", "r"))) {
+		fscanf(fp, "%s", map_wps_interface);
+		if (strstr(map_wps_interface, "vxd")) {
+		    skip_init = 1;
+			sprintf(cmd, "flash set_mib %s; ifconfig %s up; echo 1 > /tmp/map_soft_reinit; sysconf init ap wlan_app", map_wps_interface, map_wps_interface);
+			system(cmd);
+		}
+		fclose(fp);
+	}
+#endif
+
 #ifndef NO_ACTION
+#ifdef RTK_MULTI_AP
+	if(!skip_init)
+#endif
 		run_init_script("all");
 #endif		
 	}

@@ -389,6 +389,12 @@ int startDaemon(void *data, int reason )
 	 return TIMER_REMOVE;  
 }
 
+int setTimerFlag(void *data, int reason )
+{
+     system("echo schMinitor > /tmp/schMinitor");
+     return TIMER_CONTINUE;  
+}
+
 int print()
 {
 	printf("pro\n");
@@ -402,14 +408,15 @@ void main()
     threadAddPollingFunction("sys.timer",NULL, timerPolling);
     //threadAddPollingFunction("sys.task", NULL, taskPolling);
     //timerAdd("timer.demo", 6*1000, 5*1000, timerDemo, NULL, NULL);
-    timerAdd("timer.demo", 6*1000, 15*1000, startDaemon, NULL, NULL);
+    timerAdd("timer.demo", 2*1000, 5*1000, setTimerFlag, NULL, NULL);
+//    timerAdd("timer.demo", 6*1000, 15*1000, startDaemon, NULL, NULL);
     timerAdd("timer.guest_wlan_ctrl", 60*1000, 0, doGuestWlanCtrl, NULL, NULL);
 	timerAdd("timer.reboot", 1*1000, 5*1000, timerReboot, NULL, NULL);
 	timerAdd("timer.parentContrl", 10*1000, 0, parentContrl, NULL, NULL);	
 	timerAdd("timer.meshTopology", 5*1000, 0, meshTopology, NULL, NULL);
 	//timerAdd("timer.print", 10*1000, 0, print, NULL, NULL);
-    timerAdd("timer.timerCheck", 1*1000, 0, timerCheck, NULL, NULL);
-    timerAdd("timer.doMAPCheck", 1*1000, 0, doMAPCheck, NULL, NULL);
+    timerAdd("timer.timerCheck", 2*1000, 0, timerCheck, NULL, NULL);
+    timerAdd("timer.doMAPCheck", 2*1000, 0, doMAPCheck, NULL, NULL);
 
     threadSchedule(1000);
      

@@ -32,12 +32,17 @@ Description  :
 #include <signal.h>
 #include <time.h>
 #include <stdarg.h>
-#include<net/if_arp.h>
-#include<arpa/inet.h>
-#include<sys/ioctl.h>
+#include <net/if_arp.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/route.h>
 #include <net/if.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <net/route.h>  
+#include <sys/socket.h>
 
 #include<errno.h>
 #include "klink.h"
@@ -45,6 +50,24 @@ Description  :
 #include "cJSON.h"
 #include "apmib.h"
 
+struct route
+{
+    char device[64];
+    struct in_addr destination;
+    struct in_addr gateway;
+    struct in_addr netmask;
+    uint32_t mtu;
+    uint32_t window;
+    uint32_t flags;
+    uint32_t ref;
+    uint32_t use;
+    uint32_t metric;
+    uint32_t irtt;
+};
+
+struct in_IpAddr {
+    unsigned long s_addr;
+};
 
 #define _slave 
 
@@ -330,6 +353,133 @@ int getGetwayIp2(char gatewayIp[])
    return 0;
 }
 
+
+int getOsRoute
+    (
+        struct route *route, 
+        int num, 
+        int defaultOnly,    /* if true, match default entries */
+        const char *device, /* if not empty, match the device name */
+        int flagMask        /* if > 0, match the set flags */
+    )
+{
+    int ret = 0;
+    int count = 0;
+
+    char devname[64];
+    unsigned long dest, gateway, mask;
+    int flags, ref, use, metric, mtu, window, irtt;
+    
+    FILE *fp = fopen("/proc/net/route", "r");
+
+    if (fp == NULL)
+    {
+        return -1;
+    }
+
+    if (fscanf(fp, "%*[^\n]\n") < 0) 
+    { /* Skip the first line. */
+        goto ERROR;		   /* Empty or missing line, or read error. */
+    }    
+
+    while(count < num)
+    {
+        ret = fscanf(fp, "%63s%lx%lx%X%d%d%d%lx%d%d%d\n",
+                devname, &dest, &gateway, &flags, &ref, &use, &metric, &mask,
+                &mtu, &window, &irtt);
+
+        if (ret != 11)
+        {
+            if ((ret < 0) && feof(fp))
+            {
+                break;
+            }
+            goto ERROR;
+        }
+        /* always return the up entries */
+        if (!(flags & RTF_UP))
+        {
+            continue;
+        }
+        
+        if (defaultOnly && (dest != 0))
+        {
+            continue;
+        }
+
+        if (device && strcmp(device, devname))
+        {
+            continue;
+        }
+
+        if (flagMask && ((flagMask & flags) != flagMask))
+        {
+            continue;
+        }
+       
+        strcpy(route[count].device, devname);
+        route[count].destination.s_addr = dest;
+        route[count].gateway.s_addr = gateway;
+        route[count].netmask.s_addr = mask;
+        route[count].flags = flags;
+        route[count].ref = ref;
+        route[count].use = use;
+        route[count].metric = metric;
+        route[count].mtu = mtu;
+        route[count].window = window;
+        route[count].irtt = irtt;
+
+        count ++;
+    }
+
+    fclose(fp);
+
+    return count;
+    
+ERROR:
+
+    fclose(fp);
+    
+    return -1;                    
+}
+
+
+int getOsDefaultGateway(struct in_addr *gateway)
+{
+    struct route route;
+
+    if (gateway == NULL)
+    {
+        return 0;
+    }
+
+    if (getOsRoute(&route, 1, 1, NULL, 0) <= 0)
+    {
+        return -1;
+    }
+
+    /* in ppp connection, default gateway is 0 */
+    if (route.gateway.s_addr == 0)
+    {
+        struct route ppp;
+        if (getOsRoute(&ppp, 1, 0, route.device, RTF_HOST) <= 0)
+        {
+            /* not found, use the zero gateway */
+            gateway->s_addr = route.gateway.s_addr;
+        }
+        else 
+        {
+            gateway->s_addr = ppp.destination.s_addr;
+        }
+    }
+    else
+    {
+        gateway->s_addr = route.gateway.s_addr;
+    }
+    
+    return 1;
+}
+
 cJSON * slaveGenerateMessageHeader(cJSON *root,int messageType,cJSON *messageBody)
 {   
 	cJSON *pJson=root;
@@ -371,6 +521,8 @@ cJSON * slaveGenerateMessageHeader(cJSON *root,int messageType,cJSON *messageBod
 
 const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char** pMessage)
 {
+	TRACE_DEBUG("enter:%s_%d:\n ",__FUNCTION__,__LINE__);
+
 	char* stringMessage=NULL;
     cJSON *topRoot=NULL;
 	cJSON *root=NULL;
@@ -387,12 +539,15 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	int authVal_5g;
 	int cipher_5g;
 	char psk_5g[64]={0};
+	int hidden_ssid_2g;
+	
 	
 	ENCRYPT_T encrypt_2g; 
     char ssidBuf_2g[64]={0};
 	int authVal_2g;
 	int cipher_2g;
 	char psk_2g[64]={0};
+	int hidden_ssid_5g;
 	
 	char sn[64]={0};	  
 	topRoot = cJSON_CreateObject();
@@ -421,7 +576,7 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 
        old_wlan_idx = wlan_idx;
 	   old_vwlan_idx = vwlan_idx;
-	   
+		TRACE_DEBUG("%s_%d:\n ",__FUNCTION__,__LINE__);   
 	   /*for wifi cfg*/
 	   vwlan_idx = 0;
        wlan_idx = 0;
@@ -430,12 +585,16 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_5g);
 	   apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_5g);
 	   apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_5g);
+	   apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_5g);
+	   
 	   wlan_idx = 1;
 	   apmib_get( MIB_WLAN_ENCRYPT,  (void *)&encrypt_2g);
        apmib_get( MIB_WLAN_SSID,  (void *)&ssidBuf_2g);
 	   apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_2g);
 	   apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_2g);
 	   apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_2g);
+	   apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_2g);
+
 
 	   /*for guest wifi cfg*/
 	   vwlan_idx = 2;
@@ -446,6 +605,7 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   
 	   wlan_idx = old_wlan_idx;
        vwlan_idx = old_vwlan_idx;	   
+	 
 
 	   /*for  wifi Cfg*/
 	   cJSON_AddItemToObject(topRoot, "wifiCfg", root = cJSON_CreateObject());
@@ -460,7 +620,11 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   sprintf(buff,"%d",cipher_5g);
 	   cJSON_AddStringToObject(root, "cipher_5g", buff);
 	   cJSON_AddStringToObject(root, "psk_5g", psk_5g);
+	   memset(buff,0,sizeof(buff));
+	   sprintf(buff,"%d",hidden_ssid_5g);
+	   cJSON_AddStringToObject(root, "hidden_ssid_5g", buff);
 	   
+
 	   memset(buff,0,sizeof(buff));
 	   sprintf(buff,"%d",encrypt_2g);
 	   cJSON_AddStringToObject(root, "encrypt_2g", buff);
@@ -472,6 +636,9 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   sprintf(buff,"%d",cipher_2g);
 	   cJSON_AddStringToObject(root, "cipher_2g", buff);
 	   cJSON_AddStringToObject(root, "psk_2g", psk_2g);
+	   memset(buff,0,sizeof(buff));
+	   sprintf(buff,"%d",hidden_ssid_2g);
+	   cJSON_AddStringToObject(root, "hidden_ssid_2g", buff);
 
 	    /*for guest wifi Cfg*/
 	   cJSON_AddItemToObject(topRoot,"guestWifi", root = cJSON_CreateObject());
@@ -535,12 +702,15 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_5g);
 	   apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_5g);
 	   apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_5g);
+	   apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_5g);
+	   
 	   wlan_idx = 1;
 	   apmib_get( MIB_WLAN_ENCRYPT,  (void *)&encrypt_2g);
        apmib_get( MIB_WLAN_SSID,  (void *)&ssidBuf_2g); 
 	   apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_2g);
 	   apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_2g);
 	   apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_2g);
+	   apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_2g);
 	   wlan_idx = old_wlan_idx;
        vwlan_idx = old_vwlan_idx;
 
@@ -557,6 +727,10 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   cJSON_AddStringToObject(root, "cipher_5g", buff);
 	   cJSON_AddStringToObject(root, "psk_5g", psk_5g);
 	   memset(buff,0,sizeof(buff));
+	   sprintf(buff,"%d",hidden_ssid_5g);
+	   cJSON_AddStringToObject(root, "hidden_ssid_5g", buff);
+	   
+	   memset(buff,0,sizeof(buff));
 	   sprintf(buff,"%d",encrypt_2g);
 	   cJSON_AddStringToObject(root, "encrypt_2g", buff);
 	   cJSON_AddStringToObject(root, "ssid_2g", ssidBuf_2g);
@@ -567,6 +741,9 @@ const char* slaveGenerateJsonMessageBody(int messageType,cJSON *messageBody,char
 	   sprintf(buff,"%d",cipher_2g);
 	   cJSON_AddStringToObject(root, "cipher_2g", buff);
 	   cJSON_AddStringToObject(root, "psk_2g", psk_2g);
+	   memset(buff,0,sizeof(buff));
+	   sprintf(buff,"%d",hidden_ssid_2g);
+	   cJSON_AddStringToObject(root, "hidden_ssid_2g", buff);
 	   break; 
    	  }
    case KLINK_MASTER_SEND_GUEST_WIFI_INFO_TO_SLAVE:    
@@ -624,7 +801,6 @@ int _slave parseMasterConf(int fd, cJSON *jason_obj)
 */
 int syncMasterLedSwitch(int fd, int messageType, cJSON *messageBody)
 {
-  TRACE_DEBUG("%s_%d: \n",__FUNCTION__,__LINE__);
    char tmp[2]={0};
    int value=-1;
    int localValue=1;
@@ -741,7 +917,7 @@ int syncWifiSettings(int fd, int messageType, cJSON *messageBody)
    int authVal_5g;
    int cipher_5g;
    char psk_5g[64]={0};
-	 
+ 
    ENCRYPT_T encrypt_2g; 
    char ssid_2g[64]={0};
    int authVal_2g;
@@ -750,6 +926,7 @@ int syncWifiSettings(int fd, int messageType, cJSON *messageBody)
    int value=-1;
    int setFlag=0;
    int localValue=1;
+   int hidden_ssid_local;
    int ret=0;
    char *pResponseMsg=NULL;
     int old_wlan_idx;
@@ -767,11 +944,13 @@ int syncWifiSettings(int fd, int messageType, cJSON *messageBody)
 	authVal_5g=atoi(cJSON_GetObjectItem(jasonObj,"auth_5g")->valuestring);
 	cipher_5g=atoi(cJSON_GetObjectItem(jasonObj,"cipher_5g")->valuestring);;
 	strcpy(psk_5g,cJSON_GetObjectItem(jasonObj,"psk_5g")->valuestring);
+	hidden_ssid_local=(strncmp(cJSON_GetObjectItem(jasonObj,"hidden_ssid_5g")->valuestring, "0",1)?1:0);
 	apmib_set(MIB_WLAN_ENCRYPT, (void *)&encrypt_5g);
 	apmib_set(MIB_WLAN_SSID, (void *)&ssid_5g);	
 	apmib_set(MIB_WLAN_WPA_AUTH, (void *)&authVal_5g);
 	apmib_set(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_5g);
 	apmib_set(MIB_WLAN_WPA_PSK, (void *)&psk_5g);
+	apmib_set(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_local);
  
 	wlan_idx = 1;
 	encrypt_2g=atoi(cJSON_GetObjectItem(jasonObj,"encrypt_2g")->valuestring);
@@ -779,11 +958,13 @@ int syncWifiSettings(int fd, int messageType, cJSON *messageBody)
 	authVal_2g=atoi(cJSON_GetObjectItem(jasonObj,"auth_2g")->valuestring);
 	cipher_2g=atoi(cJSON_GetObjectItem(jasonObj,"cipher_2g")->valuestring);;
 	strcpy(psk_2g,cJSON_GetObjectItem(jasonObj,"psk_2g")->valuestring);
+	hidden_ssid_local=(strncmp(cJSON_GetObjectItem(jasonObj,"hidden_ssid_2g")->valuestring, "0",1)?1:0);
 	apmib_set(MIB_WLAN_ENCRYPT, (void *)&encrypt_2g);
 	apmib_set(MIB_WLAN_SSID, (void *)&ssid_2g);	
 	apmib_set(MIB_WLAN_WPA_AUTH, (void *)&authVal_2g);
 	apmib_set(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_2g);
 	apmib_set(MIB_WLAN_WPA_PSK, (void *)&psk_2g);
+	apmib_set(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_local);
 
 	if(apmib_update(CURRENT_SETTING) <= 0)
     {
@@ -819,6 +1000,8 @@ int syncWifiSettings(int fd, int messageType, cJSON *messageBody)
 
 void _slave slaveReportDeviceInfoToMaster(int sd, int messageType, cJSON *messageBody) 
 {
+	TRACE_DEBUG("enter:%s_%d:\n ",__FUNCTION__,__LINE__);
+
 	char *messageBuff;
 	char* stringMessage=NULL;
     cJSON *topRoot=NULL;
@@ -840,7 +1023,6 @@ void _slave slaveReportDeviceInfoToMaster(int sd, int messageType, cJSON *messag
     }
 	
     stringMessage=slaveGenerateJsonMessageBody(messageType,messageBody,&stringMessage);
-	TRACE_DEBUG("%s_%d:send message=%s \n",__FUNCTION__,__LINE__,stringMessage);
 	send(sd, stringMessage,strlen(stringMessage), 0) ;
     if(stringMessage != NULL)
        free(stringMessage);
@@ -859,7 +1041,6 @@ int sendHeardBeatMessage(int fd,int messageType, cJSON *messageBody)
  if(upSecond() - g_lastSlaveCheckTime > HEART_BEAT_TIME_SCHEDULE)	
   {
    stringMessage=slaveGenerateJsonMessageBody(messageType,messageBody,&stringMessage);
-   TRACE_DEBUG("%s_%d:send message=%s \n",__FUNCTION__,__LINE__,stringMessage);
    send(fd, stringMessage,strlen(stringMessage), 0) ;
    if(stringMessage != NULL)
        free(stringMessage);
@@ -937,7 +1118,6 @@ int _slave parseMessageFromMaster(int sd, char* masterMessage)
 	    if(strcmp(cJSON_GetObjectItem(json,"destMac")->valuestring,slaveMac))
 		return 0;
 	  }
-	 TRACE_DEBUG("%s_%d:messageType=%d\n ",__FUNCTION__,__LINE__,messageType);
 	 klinkSlaveStateMaching(sd,messageType,json);
      cJSON_Delete(json);	
     }
@@ -959,6 +1139,8 @@ int main(int argc,char **argv)
     server_addr.sin_family = AF_INET;   
     //struct hostent *h = gethostbyname(argv[1]);
     //server_addr.sin_addr = *((struct in_addr *)h->h_addr);
+
+	#if 0
     routeTableFlag=getGetwayIp(ip);
 	routeTableFlag2=getGetwayIp2(ip);
 	if((routeTableFlag!=0)&&(routeTableFlag2!=0))
@@ -966,8 +1148,17 @@ int main(int argc,char **argv)
 	 TRACE_DEBUG("%s_%d:getting gateway ip...\n",__FUNCTION__,__LINE__);
 	 return 0;
 	}
-	
-    TRACE_DEBUG("slave gateway ip=%s\n", ip );
+	#endif
+	 struct in_addr defaultGwAddr;
+	memset(&defaultGwAddr,0,sizeof(struct in_IpAddr));
+     if (getOsDefaultGateway(&defaultGwAddr) < 0)
+     {
+       printf("call getOsGateway() failed\n");
+	   return 0;
+     }
+      printf(" Gateway: %s\n", inet_ntoa(defaultGwAddr));
+	 sprintf(ip,"%s",inet_ntoa(defaultGwAddr));
+    TRACE_DEBUG("slaveip[%s]\n", ip );
 	server_addr.sin_addr.s_addr = inet_addr(ip);  
     server_addr.sin_port = htons(KLINK_PORT);
     if(connect(sock,(struct sockaddr*)&server_addr, sizeof(struct sockaddr_in)) < 0)

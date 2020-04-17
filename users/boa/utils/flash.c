@@ -3107,7 +3107,7 @@ int rtk_get_terminal_info(unsigned int *real_num,struct rtk_link_type_info *info
 	//*real_num = term_number;
     // end
 
-	/*get link type/rx¡¢tx info by terminal mac*/
+	/*get link type/rxï¿½ï¿½tx info by terminal mac*/
 	for(i = 0 ;i < term_number; ++i)
 	{
 		rtk_get_link_info_by_mac(info[i].mac,(info+i));	
@@ -7314,6 +7314,7 @@ static int writeDefault(WRITE_DEFAULT_TYPE_T isAll)
 	pMib->mapController     = 0;
 	pMib->mapConfiguredBand = 0;
 	sprintf((char *)pMib->mapDeviceName, "%s","EasyMesh_Device");
+	pMib->mapLogLevel = 0;
 #endif
 
 #endif
@@ -18746,6 +18747,31 @@ if (intVal3 != 0 && encrypt >= 2
 #ifdef RTK_MULTI_AP
 	apmib_get(MIB_WLAN_MAP_BSS_TYPE, (void *)&intVal);
 	pmib->multi_ap.multiap_bss_type = (unsigned char)intVal;
+	int map_state = 0;
+	apmib_get(MIB_MAP_CONTROLLER, (void *)&map_state);
+	if(map_state) {
+		// if(1 == map_state){
+		// 	int op_mode = 0;
+		// 	apmib_get(MIB_OP_MODE, (void *)&op_mode);
+		// 	if(WISP_MODE == op_mode) {
+		// 		system("iwpriv wlan0-vxd set_mib a4_enable=0");/*set controller vxd a4 disabled*/
+		// 		system("iwpriv wlan1-vxd set_mib a4_enable=0");/*set controller vxd a4 disabled*/
+		// 	}
+		// } else {
+		// 	if(intVal) {
+		// 		pmib->miscEntry.a4_enable = 1;
+		// 	} else {
+		// 		pmib->miscEntry.a4_enable = 0;
+		// 	}
+		// }
+
+		pmib->miscEntry.a4_enable = 1;
+		pmib->multi_ap.multiap_monitor_mode_disable = 0;
+	}
+	else {
+		pmib->miscEntry.a4_enable = 0;
+		pmib->multi_ap.multiap_monitor_mode_disable = 1;
+	}
 #endif
 
 #ifdef CONFIG_APP_SIMPLE_CONFIG

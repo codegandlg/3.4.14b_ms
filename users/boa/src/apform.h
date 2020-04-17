@@ -1034,6 +1034,7 @@ void asp_voip_TLSCertUpload(request *wp, char *path, char *query);
 /*-----end-----*/
 #ifdef RTK_MULTI_AP
 extern void formMultiAP(request *wp, char *path, char *query);
+extern int showBackhaulSelection(request * wp, int argc, char **argv);
 #endif
 #ifdef CONFIG_APP_BT_REPEATER_CONFIG
 void formBTRepeaterSetup(request *wp, char *path, char *query);

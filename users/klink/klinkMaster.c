@@ -199,7 +199,7 @@ KlinkNode_t* createMeshTopologyLinkList(cJSON *root)
     if(parameters != NULL)
     {
       slaveNum++;
-	  strcpy(klinkNodeData.slaveVersionInfo.slaveMac,parameters->valuestring);
+	  strcpy(klinkNodeData.slaveDevideInfo.slaveMacAddr,parameters->valuestring);
 	  /*add slave mesh node to link list tail*/
 	  addKlinkListNode(g_pKlinkHead,&klinkNodeData,KLINK_CREATE_TOPOLOGY_LINK_LIST);
     }
@@ -625,6 +625,8 @@ KlinkNode_t* setMeshLinklistDataToMib(KlinkNode_t*head)
 */
 char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 {
+   TRACE_DEBUG("enter:%s_%d:\n ",__FUNCTION__,__LINE__);
+
    char *pSendMsg=NULL;
    cJSON *root=NULL;
    cJSON *parameters=NULL;
@@ -638,7 +640,9 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
     KlinkNode_t pKlinkNodeTmp;
     KlinkNode_t* pKlinkNode=NULL;
 	memset(&pKlinkNode,0,sizeof(pKlinkNode));
-	strcpy(pKlinkNodeTmp.slaveVersionInfo.slaveMac,cJSON_GetObjectItem(messageBody,"sourceMac")->valuestring);
+	strcpy(pKlinkNodeTmp.slaveDevideInfo.slaveMacAddr,cJSON_GetObjectItem(messageBody,"sourceMac")->valuestring);
+	TRACE_DEBUG(">>>>>>>>:%s_%d:slaveMac=%s\n ",__FUNCTION__,__LINE__,pKlinkNodeTmp.slaveDevideInfo.slaveMacAddr);
+
     pKlinkNode=serchKlinkListNode(g_pKlinkHead,&pKlinkNodeTmp);
 	  
      /*led switch*/
@@ -652,12 +656,14 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	 int authVal_5g;
 	 int cipher_5g;
 	 char psk_5g[64]={0};
+	 int hidden_ssid_5g;
 	 
 	 ENCRYPT_T encrypt_2g;
 	 char ssidBuf_2g[64]={0}; 
 	 int authVal_2g;
 	 int cipher_2g;
 	 char psk_2g[64]={0};
+	 int hidden_ssid_2g;
 	 old_wlan_idx = wlan_idx;
 	 old_vwlan_idx = vwlan_idx;
 	 vwlan_idx = 0;
@@ -667,12 +673,27 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	 apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_5g);
 	 apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_5g);
 	 apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_5g);
+	 apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_5g);
+	 TRACE_DEBUG("%s_%d:\n ",__FUNCTION__,__LINE__);
+	 TRACE_DEBUG("====================:%s_%d:\n \
+	 encry: %d ssid=%s auth=%d cipher=%d psk=%s hidden=%d\n ",__FUNCTION__,__LINE__,encrypt_5g,ssidBuf_5g,authVal_5g,cipher_5g,psk_5g,hidden_ssid_5g);
+	 TRACE_DEBUG("===>================:%s_%d:\n \
+	 encry: %d ssid=%s auth=%d cipher=%d psk=%s hidden=%d\n ",__FUNCTION__,__LINE__,pKlinkNode->syncCfg.wifiCfg.encrypt_5g,pKlinkNode->syncCfg.wifiCfg.ssid_5g,pKlinkNode->syncCfg.wifiCfg.auth_5g,pKlinkNode->syncCfg.wifiCfg.cipher_5g,pKlinkNode->syncCfg.wifiCfg.psk_5g,pKlinkNode->syncCfg.wifiCfg.hidden_ssid_5g);
+	 TRACE_DEBUG("%s_%d:\n ",__FUNCTION__,__LINE__);
 	 wlan_idx = 1;
 	 apmib_get( MIB_WLAN_ENCRYPT,  (void *)&encrypt_2g);
      apmib_get( MIB_WLAN_SSID,  (void *)&ssidBuf_2g);
 	 apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_2g);
 	 apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_2g);
 	 apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_2g);
+	 apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_2g);
+	  TRACE_DEBUG("%s_%d:\n ",__FUNCTION__,__LINE__);
+	 TRACE_DEBUG("***************:%s_%d:\n \
+	 encry: %d ssid=%s auth=%d cipher=%d psk=%s hidden=%d\n ",__FUNCTION__,__LINE__,encrypt_2g,ssidBuf_2g,authVal_2g,cipher_2g,psk_2g,hidden_ssid_2g);
+	 TRACE_DEBUG("===>**************:%s_%d:\n \
+	 encry: %d ssid=%s auth=%d cipher=%d psk=%s hidden=%d\n ",__FUNCTION__,__LINE__,pKlinkNode->syncCfg.wifiCfg.encrypt_2g,pKlinkNode->syncCfg.wifiCfg.ssid_2g,pKlinkNode->syncCfg.wifiCfg.auth_2g,pKlinkNode->syncCfg.wifiCfg.cipher_2g,pKlinkNode->syncCfg.wifiCfg.psk_2g,pKlinkNode->syncCfg.wifiCfg.hidden_ssid_2g);
+	 TRACE_DEBUG("%s_%d:\n ",__FUNCTION__,__LINE__);
+
 #if 0
 	 if((encrypt_5g== ENCRYPT_DISABLED ) && ((pKlinkNode->syncCfg.wifiCfg.encrypt_5g!=ENCRYPT_DISABLED)||
 	   (strcmp(pKlinkNode->syncCfg.wifiCfg.ssid_5g,ssidBuf_5g))))
@@ -689,8 +710,10 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	   (authVal_5g!=pKlinkNode->syncCfg.wifiCfg.auth_5g)||(cipher_5g!=pKlinkNode->syncCfg.wifiCfg.cipher_5g)||
 	   (strcmp(psk_5g,pKlinkNode->syncCfg.wifiCfg.psk_5g))||(encrypt_2g!=pKlinkNode->syncCfg.wifiCfg.encrypt_2g)||
 	   (strcmp(ssidBuf_2g,pKlinkNode->syncCfg.wifiCfg.ssid_2g))||(authVal_2g!=pKlinkNode->syncCfg.wifiCfg.auth_2g)||
-	   (cipher_2g!=pKlinkNode->syncCfg.wifiCfg.cipher_2g)||(strcmp(psk_2g,pKlinkNode->syncCfg.wifiCfg.psk_2g)))
+	   (cipher_2g!=pKlinkNode->syncCfg.wifiCfg.cipher_2g)||(strcmp(psk_2g,pKlinkNode->syncCfg.wifiCfg.psk_2g))||
+	   (hidden_ssid_5g!=pKlinkNode->syncCfg.wifiCfg.hidden_ssid_5g)||(hidden_ssid_2g!=pKlinkNode->syncCfg.wifiCfg.hidden_ssid_2g))
        {
+        	    TRACE_DEBUG("====================:%s_%d:\n ",__FUNCTION__,__LINE__);
         pKlinkNode->syncCfg.wifiCfg.uncryptWifiSyncFlag=SYNC_FLAG_1;
        }
 	   	
@@ -716,6 +739,7 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	 /*led control*/
 	 if(pKlinkNode->syncCfg.ledSyncFlag==SYNC_FLAG_1)
 	 { 
+	 TRACE_DEBUG(":%s_%d:\n ",__FUNCTION__,__LINE__);
        messageType=KLINK_MASTER_SEND_LED_SWITCH_TO_SLAVE;
 	   pSendMsg=masterGenerateJsonMessageBody(messageType,messageBody,&pSendMsg);
        TRACE_DEBUG("%s_%d:send led sync message=\n%s \n",__FUNCTION__,__LINE__,pSendMsg);
@@ -727,6 +751,7 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	 /*when wlan is disabled,sync wlan settings*/
 	 else if (pKlinkNode->syncCfg.wifiCfg.uncryptWifiSyncFlag==SYNC_FLAG_1) 
 	 {	
+	    TRACE_DEBUG(":%s_%d:\n ",__FUNCTION__,__LINE__);
 	   messageType=KLINK_MASTER_SEND_WIFI_CFG_INFO_TO_SLAVE;
 	   pSendMsg=masterGenerateJsonMessageBody(messageType,messageBody,&pSendMsg);
        TRACE_DEBUG("%s_%d:send uncrypt sync message=\n%s\n",__FUNCTION__,__LINE__,pSendMsg);
@@ -736,7 +761,8 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	 } 
 	 /*guest wifi settins*/
 	 else if(pKlinkNode->syncCfg.guestWifi.guestSyncFlag==SYNC_FLAG_1)
-	 {	   
+	 {	
+	 TRACE_DEBUG(":%s_%d:\n ",__FUNCTION__,__LINE__);
 	   messageType=KLINK_MASTER_SEND_GUEST_WIFI_INFO_TO_SLAVE;
 	   pSendMsg=masterGenerateJsonMessageBody(messageType,messageBody,&pSendMsg);
        TRACE_DEBUG("%s_%d:send guest sync message=\n%s\n",__FUNCTION__,__LINE__,pSendMsg);
@@ -746,8 +772,10 @@ char* periodCheckSyncValueToSlave_1(int fd,int messageType,cJSON *messageBody)
 	 }
     else
     {   
+    TRACE_DEBUG(":%s_%d:\n ",__FUNCTION__,__LINE__);
        sendHeartBeatMessage(fd,messageType,messageBody);       
     }
+	  TRACE_DEBUG("exit:%s_%d:\n ",__FUNCTION__,__LINE__);
 }
 
 int parseSlaveVersionConf(int fd, cJSON *messageBody)
@@ -761,8 +789,8 @@ int parseSlaveVersionConf(int fd, cJSON *messageBody)
 
    if(jasonObj = cJSON_GetObjectItem(messageBody,"slaveVersion"))
    {
-    strcpy(pKlinkData->slaveVersionInfo.slaveSoftVer,cJSON_GetObjectItem(jasonObj,"slaveSoftVer")->valuestring);
-    strcpy(pKlinkData->slaveVersionInfo.slaveMac,cJSON_GetObjectItem(jasonObj,"slaveMac")->valuestring);
+    strcpy(pKlinkData->slaveDevideInfo.slaveFwVersion,cJSON_GetObjectItem(jasonObj,"slaveSoftVer")->valuestring);
+    strcpy(pKlinkData->slaveDevideInfo.slaveMacAddr,cJSON_GetObjectItem(jasonObj,"slaveMac")->valuestring);
    }
 
    pKlinkHead=createKlinkLinkList();
@@ -870,7 +898,7 @@ int backupCurrentCfg(int messageType)
 /*add message to klink structer node*/
 void cjsonToMessageNode(cJSON *messageBody,KlinkNode_t *messageNode)
 {
- cJSON*jasonObj=NULL;
+ cJSON*jasonObj=NULL; 
  int messageType;
  messageType=atoi(cJSON_GetObjectItem(messageBody,"messageType")->valuestring);
  messageNode->klinkMsgStaMachine=messageType;
@@ -895,12 +923,22 @@ void cjsonToMessageNode(cJSON *messageBody,KlinkNode_t *messageNode)
 		 messageNode->syncCfg.wifiCfg.auth_5g=atoi(cJSON_GetObjectItem(jasonObj,"auth_5g")->valuestring);
 		 messageNode->syncCfg.wifiCfg.cipher_5g=atoi(cJSON_GetObjectItem(jasonObj,"cipher_5g")->valuestring);
 		 strcpy(messageNode->syncCfg.wifiCfg.psk_5g,cJSON_GetObjectItem(jasonObj,"psk_5g")->valuestring);
-		 
+
+		 if(cJSON_GetObjectItem(jasonObj,"hidden_ssid_5g")->valuestring)
+		 {	 
+			
+		  messageNode->syncCfg.wifiCfg.hidden_ssid_5g =atoi(cJSON_GetObjectItem(jasonObj,"hidden_ssid_5g")->valuestring);
+		 }
+	 
 		 messageNode->syncCfg.wifiCfg.encrypt_2g=atoi(cJSON_GetObjectItem(jasonObj,"encrypt_2g")->valuestring);
 		 strcpy(messageNode->syncCfg.wifiCfg.ssid_2g,cJSON_GetObjectItem(jasonObj,"ssid_2g")->valuestring);
 		 messageNode->syncCfg.wifiCfg.auth_2g=atoi(cJSON_GetObjectItem(jasonObj,"auth_2g")->valuestring);
 		 messageNode->syncCfg.wifiCfg.cipher_2g=atoi(cJSON_GetObjectItem(jasonObj,"cipher_2g")->valuestring);
 		 strcpy(messageNode->syncCfg.wifiCfg.psk_2g,cJSON_GetObjectItem(jasonObj,"psk_2g")->valuestring);
+		 if(cJSON_GetObjectItem(jasonObj,"hidden_ssid_2g")->valuestring)
+		 {
+		 messageNode->syncCfg.wifiCfg.hidden_ssid_2g =atoi(cJSON_GetObjectItem(jasonObj,"hidden_ssid_2g")->valuestring);
+		 }
 	   } 
 
 	   if(jasonObj = cJSON_GetObjectItem(messageBody,"guestWifi"))
@@ -920,7 +958,7 @@ void cjsonToMessageNode(cJSON *messageBody,KlinkNode_t *messageNode)
     TRACE_DEBUG("=>get uncrypt wifi setting ack\n");
 	 break;
 	case KLINK_SLAVE_SEND_GUEST_WIFI_SETTING_ACK:	 
-    TRACE_DEBUG("=>get uncrypt wifi setting ack\n");
+    TRACE_DEBUG("=>get guest wifi setting ack\n");
 	 break;	
   default:
   	 break;
@@ -934,6 +972,7 @@ cJSON * masterGenerateMessageHeader(cJSON *root,int messageType,cJSON *messageBo
 	cJSON *pJson=root;
 	char macAddr[18]={0};
 	char fwVersion[18]={0};	
+	TRACE_DEBUG("enter:%s_%d:messageType=%d\n ",__FUNCTION__,__LINE__,messageType); 
 
     switch (messageType)
     {
@@ -961,7 +1000,6 @@ cJSON * masterGenerateMessageHeader(cJSON *root,int messageType,cJSON *messageBo
 		   break;
 		  case KLINK_SLAVE_SEND_WIFI_CFG_SETTING_ACK:
 		  	   cJSON_AddStringToObject(pJson, "messageType", "3");
-		  TRACE_DEBUG("=>get uncrypt wifi setting ack\n");
 		 
 		   break;
 		  case KLINK_MASTER_SEND_GUEST_WIFI_INFO_TO_SLAVE:
@@ -977,6 +1015,7 @@ cJSON * masterGenerateMessageHeader(cJSON *root,int messageType,cJSON *messageBo
 		cJSON_AddStringToObject(pJson, "sourceMac", masterMac);	
 	    if(messageType!=KLINK_START)
 	    cJSON_AddStringToObject(pJson, "destMac", cJSON_GetObjectItem(messageBody,"sourceMac")->valuestring);	
+
 	    return pJson;
 }
 
@@ -1019,6 +1058,8 @@ KlinkNode_t * getSlaveNode(cJSON *messageBody)
 /*add settings to message body*/
 const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,char** pMessage)
 {
+	TRACE_DEBUG("enter:%s_%d:\n ",__FUNCTION__,__LINE__);
+
 	char* stringMessage=NULL;
     cJSON *topRoot=NULL;
 	cJSON *root=NULL;
@@ -1032,7 +1073,7 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
         TRACE_DEBUG("cJsonCreateObj failed!");
         return NULL;
     }
-	 
+	   TRACE_DEBUG("enter:%s_%d:messageType=%d\n ",__FUNCTION__,__LINE__,messageType); 
     /* generate header */
     topRoot=masterGenerateMessageHeader(topRoot,messageType,messageBody);
  switch(messageType)
@@ -1078,11 +1119,14 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
 	   int authVal_5g;
 	   int cipher_5g;
 	   char psk_5g[64]={0};
+	   int hidden_ssid_5g;
+	   
 	   ENCRYPT_T encrypt_2g;
 	   char ssidBuf_2g[64]={0}; 
 	   int authVal_2g;
 	   int cipher_2g;
 	   char psk_2g[64]={0};
+	   int hidden_ssid_2g;
 	   old_wlan_idx = wlan_idx;
 	   old_vwlan_idx = vwlan_idx;
 	   vwlan_idx = 0;
@@ -1092,12 +1136,14 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
 	   apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_5g);
 	   apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_5g);
 	   apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_5g);
+	   apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_5g);   
 	   wlan_idx = 1;
 	   apmib_get( MIB_WLAN_ENCRYPT,  (void *)&encrypt_2g);
        apmib_get( MIB_WLAN_SSID,  (void *)&ssidBuf_2g);
 	   apmib_get(MIB_WLAN_WPA_AUTH, (void *)&authVal_2g);
 	   apmib_get(MIB_WLAN_WPA2_CIPHER_SUITE, (void *)&cipher_2g);
 	   apmib_get(MIB_WLAN_WPA_PSK, (void *)&psk_2g);
+	   apmib_get(MIB_WLAN_HIDDEN_SSID, (void *)&hidden_ssid_2g);  
 	   wlan_idx=old_wlan_idx;
 	   vwlan_idx=old_vwlan_idx;
   	   cJSON_AddItemToObject(topRoot, "wifiCfg", root = cJSON_CreateObject());
@@ -1112,6 +1158,9 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
 	   sprintf(buff,"%d",cipher_5g);
 	   cJSON_AddStringToObject(root, "cipher_5g", buff);
 	   cJSON_AddStringToObject(root, "psk_5g", psk_5g);
+	   memset(buff,0,sizeof(buff));
+	   sprintf(buff,"%d",hidden_ssid_5g);
+	   cJSON_AddStringToObject(root, "hidden_ssid_5g", buff);
 	   
 	   memset(buff,0,sizeof(buff));
 	   sprintf(buff,"%d",encrypt_2g);
@@ -1124,10 +1173,13 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
 	   sprintf(buff,"%d",cipher_2g);
 	   cJSON_AddStringToObject(root, "cipher_2g", buff);
 	   cJSON_AddStringToObject(root, "psk_2g", psk_2g);
+	   memset(buff,0,sizeof(buff));
+	   sprintf(buff,"%d",hidden_ssid_2g);
+	   cJSON_AddStringToObject(root, "hidden_ssid_2g", buff);
   	}
 	 break;
     case KLINK_SLAVE_SEND_WIFI_CFG_SETTING_ACK:
-     TRACE_DEBUG("=>get uncrypt wifi setting ack\n");
+     TRACE_DEBUG("enter:%s_%d:messageType=%d\n ",__FUNCTION__,__LINE__,messageType); 
 	 break;
 	case KLINK_MASTER_SEND_GUEST_WIFI_INFO_TO_SLAVE:
 	{
@@ -1158,7 +1210,7 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
 	}
 	 break;
 	case KLINK_SLAVE_SEND_GUEST_WIFI_SETTING_ACK:
-    TRACE_DEBUG("=>get uncrypt wifi setting ack\n");
+	TRACE_DEBUG("enter:%s_%d:messageType=%d\n ",__FUNCTION__,__LINE__,messageType); 
 	 break;	
   default:
   	 break;
@@ -1166,6 +1218,7 @@ const char* masterGenerateJsonMessageBody(int messageType,cJSON *messageBody,cha
  	*pMessage = cJSON_Print(topRoot);  
  	if(topRoot!=NULL)
 	cJSON_Delete(topRoot);	
+	   TRACE_DEBUG("exit:%s_%d:\n ",__FUNCTION__,__LINE__);
 	return *pMessage;
 }
 
@@ -1182,7 +1235,7 @@ int sendHeartBeatMessage(int fd,int messageType, cJSON *messageBody)
   cJSON *parameters=NULL;
 
    stringMessage=masterGenerateJsonMessageBody(messageType,messageBody,&stringMessage);
-  // TRACE_DEBUG("%s_%d:send message=%s \n",__FUNCTION__,__LINE__,stringMessage);
+   TRACE_DEBUG("%s_%d:send message=%s \n",__FUNCTION__,__LINE__,stringMessage);
    send(fd, stringMessage,strlen(stringMessage), 0) ;
    if(stringMessage != NULL)
      free(stringMessage);
@@ -1200,7 +1253,6 @@ int addSlaveDeviceInfoToLinkList(int fd, cJSON *messageBody,KlinkNode_t *message
    setMeshLinklistDataToMib(g_pKlinkHead);
    messageType = atoi(cJSON_GetObjectItem(messageBody,"messageType")->valuestring);
    pResponseMsg=masterGenerateJsonMessageBody(messageType,messageBody,&pResponseMsg);
-   TRACE_DEBUG("%s_%d:send version ack data [%s]  \n",__FUNCTION__,__LINE__,pResponseMsg);
    
    send(fd , pResponseMsg, strlen(pResponseMsg) , 0 );
    if(pResponseMsg != NULL)
@@ -1230,7 +1282,7 @@ int klinkMasterStateMaching(int sd,int messageType,cJSON *messageBody)
 	 break;
 	case KLINK_SLAVE_SEND_GUEST_WIFI_SETTING_ACK:
 	 updateKlinkListNodeData(g_pKlinkHead,messageBody);
-    TRACE_DEBUG("=>get uncrypt wifi setting ack\n");
+    TRACE_DEBUG("=>get guest setting ack\n");
 	 break;	
   default:
   	 break;
@@ -1451,6 +1503,7 @@ int main(int argc , char *argv[])
                 {
                     /*set the string terminating NULL byte on the end of the data read*/
                     buffer[valread] = '\0';
+					  TRACE_DEBUG(":%s_%d:\n ",__FUNCTION__,__LINE__);
 					TRACE_DEBUG("++++get info from slave :%s\n",buffer);
                     parseMessageFromSlave(sd, (char*)buffer);
 					//periodCheckSyncValueToSlave(sd);

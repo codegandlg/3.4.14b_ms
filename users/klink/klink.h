@@ -75,6 +75,9 @@ typedef enum
 
   KLINK_MASTER_SEND_GUEST_WIFI_INFO_TO_SLAVE=8, 
   KLINK_SLAVE_SEND_GUEST_WIFI_SETTING_ACK=9, 
+
+  //KLINK_MASTER_SEND_HIDDEN_SSID_INFO_TO_SLAVE=8, 
+ // KLINK_SLAVE_SEND_HIDDEN_SSID_SETTING_ACK=9,
   
 }klinkMsgStateMachine_t;  
 
@@ -108,11 +111,15 @@ typedef struct uncryptWifiSetting
  int auth_2g;
  int cipher_2g;
  char psk_2g[64];
+ int hidden_ssid_2g;
+ 
  ENCRYPT_T encrypt_5g;
  char ssid_5g[64];
  int auth_5g;
  int cipher_5g;
  char psk_5g[64];
+ int hidden_ssid_5g;
+ 
  int uncryptWifiSyncFlag;
 }uncryptWifiSetting_t;
 
@@ -185,6 +192,9 @@ typedef struct etherAddr
     unsigned char octet[ETHER_ADDR_LEN];
 }etherAddr_t;
 
+
+
+
 /*use for listen() func*/
 #define PENDING_CONNECTION_NUM     3   
 
@@ -203,6 +213,17 @@ extern KlinkNode_t* g_pKlinkHead;
 			printf("[Debug]:"fmt"\n", ##args); \
 		}										\
 	}	
+
+#define DEBUG_ON_TAG_FILE_KLINKM	"/var/run/DEBUG_KLINKM"
+
+#define TRACE_DEBUG_KLINKM(fmt, args...)	 \
+	{											\
+		if(access( DEBUG_ON_TAG_FILE_KLINKM, F_OK ) >= 0) \
+		{										\
+			printf("[Debug]:"fmt"\n", ##args); \
+		}										\
+	}	
+
 
 
 

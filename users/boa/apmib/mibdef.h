@@ -1199,6 +1199,7 @@ MIBDEF(char,			defaultFwId, [MAX_CAPWAP_FWID_BUF_SIZE], CAPWAP_WTP_DEFAULT_FWID,
 MIBDEF(unsigned char, mapController,     , MAP_CONTROLLER,      BYTE_T, APMIB_T, 0, 0,0,0)
 MIBDEF(unsigned char, mapConfiguredBand, , MAP_CONFIGURED_BAND, BYTE_T, APMIB_T, 0, 0,0,0)
 MIBDEF(char, mapDeviceName,  [MAX_MAP_DEVICE_NAME_LEN]  , MAP_DEVICE_NAME,    STRING_T, APMIB_T, 0, 0,0,0)
+MIBDEF(unsigned char, mapLogLevel,       , MAP_LOG_LEVEL,       BYTE_T, APMIB_T, 0, 0,0,0)
 #endif
 
 #ifdef CONFIG_RTL_AIRTIME

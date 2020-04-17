@@ -2548,6 +2548,7 @@ typedef enum {
 #define MIB_WLAN_MAP_BSS_TYPE      2388
 #define MIB_MAP_DEVICE_NAME        2389
 #define MAX_MAP_DEVICE_NAME_LEN    30
+#define MIB_MAP_LOG_LEVEL          2390
 #endif
 
 /* ==== NASFILTER START ==== */
@@ -4137,7 +4138,10 @@ typedef struct wlan_sta_info {
 #else
 	unsigned char	resv[3];
 #endif
-	unsigned short	acTxOperaRate;	
+	unsigned short	acTxOperaRate;
+#ifdef RTK_MULTI_AP
+	unsigned char   multiap_profile;
+#endif
 } WLAN_STA_INFO_T, *WLAN_STA_INFO_Tp;
 
 typedef struct wlan_rate{
